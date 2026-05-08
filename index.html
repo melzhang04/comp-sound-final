@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CinematicAI</title>
+  <style>
+    body { font-family: monospace; max-width: 700px; margin: 40px auto; padding: 0 20px; }
+    textarea { width: 100%; font-size: 1.1rem; padding: 12px; box-sizing: border-box; }
+    #hint { font-size: 0.8rem; color: #888; margin: 4px 0 16px; }
+    #output { display: none; }
+    h2 { margin: 0 0 12px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+    td, th { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+    th { background: #f4f4f4; }
+    .bar { background: #ddd; height: 14px; }
+    .bar-fill { background: #555; height: 14px; }
+    .params { background: #f9f9f9; padding: 12px; border: 1px solid #ccc; }
+    .params span { display: inline-block; margin-right: 24px; }
+    .label { color: #888; font-size: 0.75rem; display: block; }
+  </style>
+</head>
+<body>
+  <h1>CinematicAI</h1>
+  <textarea id="sceneInput" rows="4" placeholder="a detective walking through a rainy city at night..."></textarea>
+  <div id="hint">Press Enter to analyse</div>
+
+  <div id="output">
+    <h2>Scene scores</h2>
+    <table id="scoresTable">
+      <thead><tr><th>Archetype</th><th>Score</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <h2>Musical parameters</h2>
+    <div class="params">
+      <span><span class="label">ARCHETYPE</span><span id="pArchetype">—</span></span>
+      <span><span class="label">SCALE</span><span id="pScale">—</span></span>
+      <span><span class="label">TEMPO</span><span id="pTempo">—</span></span>
+      <span><span class="label">FM RATIO</span><span id="pFM">—</span></span>
+      <span><span class="label">REVERB</span><span id="pReverb">—</span></span>
+      <span><span class="label">DENSITY</span><span id="pDensity">—</span></span>
+      <span><span class="label">DYNAMICS</span><span id="pDynamics">—</span></span>
+      <span><span class="label">FILTER</span><span id="pFilter">—</span></span>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
