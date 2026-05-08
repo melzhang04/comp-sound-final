@@ -1,5 +1,5 @@
-// Scale definitions as semitone intervals within one octave (root = 0).
-// Provides frequency arrays for use by the composition engine.
+// scale definitions as semitone intervals within one octave (root = 0).
+// provides frequency arrays for use by the composition engine.
 
 const SCALE_INTERVALS = {
   major:      [0, 2, 4, 5, 7, 9, 11],
@@ -15,7 +15,7 @@ function semitonesToHz(rootHz, semitones) {
   return rootHz * Math.pow(2, semitones / 12);
 }
 
-// Returns a flat array of frequencies for the given scale across `octaves` octaves.
+// returns a flat array of frequencies for the given scale across `octaves` octaves.
 // rootHz is the frequency of the root note (e.g. 220 for A3).
 export function getScaleFrequencies(scaleName, rootHz = 220, octaves = 3) {
   const intervals = SCALE_INTERVALS[scaleName];
@@ -31,7 +31,7 @@ export function getScaleFrequencies(scaleName, rootHz = 220, octaves = 3) {
   return freqs;
 }
 
-// Returns the frequency of a single scale degree (0-indexed) at a given octave offset.
+// returns the frequency of a single scale degree (0-indexed) at a given octave offset.
 export function getNote(scaleName, rootHz = 220, degree = 0, octave = 0) {
   const intervals = SCALE_INTERVALS[scaleName];
   if (!intervals) throw new Error(`Unknown scale: ${scaleName}`);
