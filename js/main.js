@@ -58,6 +58,18 @@ function analyse(text) {
   document.getElementById('pDynamics').textContent  = p.dynamics;
   document.getElementById('pFilter').textContent    = p.filterType + ' @ ' + p.filterFreq + ' Hz';
 
+  const complexityEl = document.getElementById('pComplexity');
+  const textureEl = document.getElementById('pTexture');
+  const confidenceEl = document.getElementById('pConfidence');
+  const matchesEl = document.getElementById('pMatches');
+  if (complexityEl) complexityEl.textContent = p.complexity ?? '—';
+  if (textureEl) textureEl.textContent = p.texture ?? '—';
+  if (confidenceEl) confidenceEl.textContent = p.confidence ?? '—';
+  if (matchesEl) {
+    const labels = (p.matchedKeywords ?? []).map(m => m.label);
+    matchesEl.textContent = labels.length ? [...new Set(labels)].slice(0, 8).join(', ') : 'none';
+  }
+
   const piece = generatePiece(p);
   const grammar = GRAMMARS[p.archetype] ?? GRAMMARS.tense;
   document.getElementById('pAxiom').textContent    = grammar.axiom;

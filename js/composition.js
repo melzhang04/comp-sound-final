@@ -1,212 +1,263 @@
 import { getScaleFrequencies, getScaleSize } from './scales.js';
+
 const ARCHETYPE = {
   tense: {
     scale: 'phrygian_dominant',
-    rootHz: 146.83, // D3
+    rootHz: 146.83,
     octaves: 3,
-    chordProgressions: [
-      [0, 1, 0, 5],     // tonic, lowered-2, tonic, raised-6  — exotic, jagged
-      [0, 5, 1, 0],
-      [0, 3, 5, 1],
-    ],
-    intervalSet: [1, 1, 1, 2, 3],          // mostly half-steps + a few skips
-    leapSet:     [4, 5, 7],
-    stepBias:    0.55,                      // mix of step + leap (jagged)
-    rhythmCells: [
-      [0.5, 0.25, 0.25, 0.5, 0.5],          // syncopated 8 16 16 8 8
-      [0.25, 0.25, 0.25, 0.25, 0.5, 0.5],   // 16 16 16 16 8 8
-      [0.5, 0.5, 0.25, 0.25, 1],
-      [0.25, 0.75, 0.5, 0.5],               // dotted-16 push
-    ],
-    melodyRegister: 1,                       // start ~1 octave above bass
-    bassOctave:    -1,
-    padVoicing:    [0, 2, 4],
+    chordProgressions: [[0, 1, 0, 5], [0, 5, 1, 0], [0, 3, 5, 1]],
+    intervalSet: [1, 1, 1, 2, 3],
+    leapSet: [4, 5, 7, 9],
+    stepBias: 0.48,
+    rhythmCells: [[0.5, 0.25, 0.25, 0.5, 0.5], [0.25, 0.25, 0.25, 0.25, 0.5, 0.5], [0.5, 0.5, 0.25, 0.25, 1], [0.25, 0.75, 0.5, 0.5]],
+    melodyRegister: 1,
+    bassOctave: -1,
+    padVoicing: [0, 2, 4, 6],
+    ostinatoPattern: [0, 1, 0, 5, 1, 0],
+    ostinatoStep: 0.25,
+    counterPattern: [5, 4, 2, 1],
+    pulseEvery: 0.5,
   },
 
   romantic: {
     scale: 'lydian',
-    rootHz: 174.61, // F3 — warm mid-low so the melody sits in soprano range
+    rootHz: 174.61,
     octaves: 3,
-    chordProgressions: [
-      [0, 4, 5, 3],     // I, V, vi, IV   — classic
-      [0, 5, 3, 4],     // I, vi, IV, V
-      [0, 3, 4, 0],
-    ],
-    intervalSet: [1, 2, 2, 3, 4],            // 3rds, 4ths
-    leapSet:     [4, 5, 7],
-    stepBias:    0.78,                       // mostly stepwise → lyrical
-    rhythmCells: [
-      [1, 0.5, 0.5, 1, 1],                   // singing quarter+eighth feel
-      [0.5, 0.5, 1, 0.5, 0.5, 1],
-      [1.5, 0.5, 1, 1],                      // dotted swing
-      [0.5, 0.5, 0.5, 0.5, 1, 1],
-    ],
-    melodyRegister: 1,
-    bassOctave:    -1,
-    padVoicing:    [0, 2, 4],
+    chordProgressions: [[0, 4, 5, 3], [0, 5, 3, 4], [0, 3, 4, 0]],
+    intervalSet: [1, 2, 2, 3, 4],
+    leapSet: [4, 5, 7],
+    stepBias: 0.78,
+    rhythmCells: [[1, 0.5, 0.5, 1, 1], [0.5, 0.5, 1, 0.5, 0.5, 1], [1.5, 0.5, 1, 1], [0.5, 0.5, 0.5, 0.5, 1, 1]],
+    melodyRegister: 2,
+    bassOctave: -1,
+    padVoicing: [0, 2, 4, 6],
+    ostinatoPattern: [0, 2, 4, 2],
+    ostinatoStep: 0.5,
+    counterPattern: [4, 3, 2, 1],
+    pulseEvery: 1,
   },
 
   epic: {
     scale: 'hungarian_minor',
-    rootHz: 110.00, // A2 — keeps it big and low
+    rootHz: 110.0,
     octaves: 4,
-    chordProgressions: [
-      [0, 5, 3, 6],                          // i, VI, iv, ♭VII — heroic
-      [0, 6, 5, 0],                          // i, ♭VII, VI, i
-      [0, 3, 0, 5],
-    ],
+    chordProgressions: [[0, 5, 3, 6], [0, 6, 5, 0], [0, 3, 0, 5]],
     intervalSet: [1, 2, 3, 3, 4],
-    leapSet:     [4, 5, 7, 7, 12],           // big leaps, full octaves
-    stepBias:    0.5,
-    rhythmCells: [
-      [0.5, 0.5, 0.5, 0.5, 1, 1],            // driving 8ths into halves
-      [0.25, 0.25, 0.5, 0.5, 0.5, 1],
-      [1, 0.5, 0.5, 1, 1],
-      [0.25, 0.25, 0.25, 0.25, 0.5, 0.5, 1], // surge
-    ],
-    melodyRegister: 3,                       // sit high above the low bass
-    bassOctave:    -1,
-    padVoicing:    [0, 2, 4],
+    leapSet: [4, 5, 7, 7, 12],
+    stepBias: 0.45,
+    rhythmCells: [[0.5, 0.5, 0.5, 0.5, 1, 1], [0.25, 0.25, 0.5, 0.5, 0.5, 1], [1, 0.5, 0.5, 1, 1], [0.25, 0.25, 0.25, 0.25, 0.5, 0.5, 1]],
+    melodyRegister: 3,
+    bassOctave: -1,
+    padVoicing: [0, 2, 4, 7],
+    ostinatoPattern: [0, 4, 7, 4, 5, 7, 12, 7],
+    ostinatoStep: 0.25,
+    counterPattern: [0, 5, 7, 12],
+    pulseEvery: 0.5,
   },
 
   mysterious: {
     scale: 'octatonic',
-    rootHz: 130.81, // C3
+    rootHz: 130.81,
     octaves: 3,
-    chordProgressions: [
-      [0, 3, 6, 1],                          // diminished cycle
-      [0, 2, 4, 6],                          // symmetrical climb
-      [0, 5, 0, 3],
-    ],
-    intervalSet: [2, 3, 3, 4],               // skips & tritones (octatonic)
-    leapSet:     [3, 6, 9, 12],              // tritone-ish jumps
-    stepBias:    0.45,
-    rhythmCells: [
-      [1, 1.5, 0.5, 1],                      // unsettled
-      [2, 0.5, 0.5, 1],
-      [0.25, 1.75, 1, 1],                    // sudden short-then-held
-      [0.5, 0.5, 1.5, 0.5, 1],
-    ],
+    chordProgressions: [[0, 3, 6, 1], [0, 2, 4, 6], [0, 5, 0, 3]],
+    intervalSet: [2, 3, 3, 4],
+    leapSet: [3, 6, 9, 12],
+    stepBias: 0.42,
+    rhythmCells: [[1, 1.5, 0.5, 1], [2, 0.5, 0.5, 1], [0.25, 1.75, 1, 1], [0.5, 0.5, 1.5, 0.5, 1]],
     melodyRegister: 2,
-    bassOctave:    -1,
-    padVoicing:    [0, 2, 5],                // open / non-triadic stack
+    bassOctave: -1,
+    padVoicing: [0, 2, 5, 7],
+    ostinatoPattern: [0, 3, 6, 3, 9, 6],
+    ostinatoStep: 0.5,
+    counterPattern: [6, 3, 9, 2],
+    pulseEvery: 1,
   },
 
   peaceful: {
     scale: 'pentatonic_major',
-    rootHz: 196.00, // G3
+    rootHz: 196.0,
     octaves: 3,
-    chordProgressions: [
-      [0, 2, 0, 1],                          // I, V, I, IV (in pentatonic)
-      [0, 1, 2, 0],
-      [0, 1, 0, 2],
-    ],
-    intervalSet: [1, 1, 2, 2, 3],            // smooth small steps
-    leapSet:     [3, 4, 5],
-    stepBias:    0.85,                       // very lyrical, almost no leaps
-    rhythmCells: [
-      [1, 1, 1, 1],                          // calm walking quarters
-      [1.5, 0.5, 1, 1],
-      [0.5, 0.5, 1, 0.5, 0.5, 1],
-      [2, 1, 1],
-    ],
+    chordProgressions: [[0, 2, 0, 1], [0, 1, 2, 0], [0, 1, 0, 2]],
+    intervalSet: [1, 1, 2, 2, 3],
+    leapSet: [3, 4, 5],
+    stepBias: 0.88,
+    rhythmCells: [[1, 1, 1, 1], [1.5, 0.5, 1, 1], [0.5, 0.5, 1, 0.5, 0.5, 1], [2, 1, 1]],
     melodyRegister: 2,
-    bassOctave:    -1,
-    padVoicing:    [0, 2, 4],
+    bassOctave: -1,
+    padVoicing: [0, 2, 4],
+    ostinatoPattern: [0, 2, 4, 2],
+    ostinatoStep: 1,
+    counterPattern: [2, 1, 0, 1],
+    pulseEvery: 2,
   },
 
   melancholic: {
     scale: 'harmonic_minor',
-    rootHz: 174.61, // F3
+    rootHz: 174.61,
     octaves: 3,
-    chordProgressions: [
-      [0, 5, 3, 4],                          // i, VI, iv, V — yearning
-      [0, 3, 6, 0],
-      [0, 6, 5, 0],
-    ],
-    intervalSet: [1, 1, 2, 2, 3],            // mostly stepwise
-    leapSet:     [3, 4, 5, 7],
-    stepBias:    0.75,
-    rhythmCells: [
-      [1.5, 0.5, 1, 1],                      // sigh-like dotted figure
-      [1, 1, 0.5, 0.5, 1],
-      [2, 1, 1],
-      [0.5, 0.5, 1, 0.5, 0.5, 1],
-    ],
+    chordProgressions: [[0, 5, 3, 4], [0, 3, 6, 0], [0, 6, 5, 0]],
+    intervalSet: [1, 1, 2, 2, 3],
+    leapSet: [3, 4, 5, 7],
+    stepBias: 0.76,
+    rhythmCells: [[1.5, 0.5, 1, 1], [1, 1, 0.5, 0.5, 1], [2, 1, 1], [0.5, 0.5, 1, 0.5, 0.5, 1]],
     melodyRegister: 2,
-    bassOctave:    -1,
-    padVoicing:    [0, 2, 4],
+    bassOctave: -1,
+    padVoicing: [0, 2, 4, 6],
+    ostinatoPattern: [0, 2, 4, 2],
+    ostinatoStep: 1,
+    counterPattern: [6, 5, 3, 2],
+    pulseEvery: 2,
   },
 };
 
 function rand() { return Math.random(); }
 function pick(arr) { return arr[Math.floor(rand() * arr.length)]; }
+function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
 function getProfile(archetype) { return ARCHETYPE[archetype] ?? ARCHETYPE.tense; }
 
-// Build a triad (or wider voicing) above a given scale degree.
-// Voicings are scale-step offsets, e.g. [0, 2, 4] = root + 3rd + 5th of the scale.
-function buildChord(degree, voicing, scaleFreqs, scaleSize, octaves, baseOctave = 1) {
-  const chord = [];
-  for (const offset of voicing) {
-    const idx = (baseOctave * scaleSize) + degree + offset;
-    const safe = Math.max(0, Math.min(scaleFreqs.length - 1, idx));
-    chord.push(scaleFreqs[safe]);
-  }
-  return chord;
+function clampIndex(idx, scaleFreqs) {
+  return Math.max(0, Math.min(scaleFreqs.length - 1, idx));
 }
 
-// Bass: one note per chord, low octave. Sustained for almost the full chord.
-function generateBass(profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord) {
+function scaleDegreeFreq(degree, scaleFreqs, scaleSize, baseOctave = 1) {
+  return scaleFreqs[clampIndex(baseOctave * scaleSize + degree, scaleFreqs)];
+}
+
+function buildChord(degree, voicing, scaleFreqs, scaleSize, baseOctave = 1) {
+  return voicing.map(offset => scaleDegreeFreq(degree + offset, scaleFreqs, scaleSize, baseOctave));
+}
+
+function generateBass(profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord, params) {
   const notes = [];
-  const baseOct = Math.max(0, profile.bassOctave + 1); // index into scaleFreqs by octave
+  const baseOct = Math.max(0, profile.bassOctave + 1);
+  const density = params.rhythmDensity ?? 0.6;
+  const complexity = params.complexity ?? 0.6;
+
   for (let i = 0; i < prog.length; i++) {
-    const idx = (baseOct * scaleSize) + prog[i];
-    const safe = Math.max(0, Math.min(scaleFreqs.length - 1, idx));
+    const root = scaleDegreeFreq(prog[i], scaleFreqs, scaleSize, baseOct) * 0.5;
+    const chordStart = i * beatsPerChord * beatDur;
+
     notes.push({
-      freq: scaleFreqs[safe] * 0.5,                // octave below the scale array
-      time: i * beatsPerChord * beatDur,
-      duration: beatsPerChord * beatDur * 0.95,
-      velocity: 0.55,
+      freq: root,
+      time: chordStart,
+      duration: beatsPerChord * beatDur * 0.96,
+      velocity: clamp(0.36 + params.dynamics * 0.28, 0.28, 0.72),
       voice: 'bass',
+      pan: -0.08,
     });
+
+    const pulseEvery = profile.pulseEvery ?? 1;
+    if (density + complexity > 1.05) {
+      for (let beat = 0; beat < beatsPerChord; beat += pulseEvery) {
+        notes.push({
+          freq: root,
+          time: chordStart + beat * beatDur,
+          duration: beatDur * Math.min(0.38, pulseEvery * 0.55),
+          velocity: clamp(0.20 + params.dynamics * 0.22, 0.18, 0.48),
+          voice: 'bassPulse',
+          pan: -0.12,
+        });
+      }
+    }
   }
   return notes;
 }
 
-// Harmony / pad: held triad per chord change.
-function generateHarmony(profile, prog, scaleFreqs, scaleSize, octaves, beatDur, beatsPerChord) {
+function generateHarmony(profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord, params) {
   const notes = [];
   for (let i = 0; i < prog.length; i++) {
-    const chord = buildChord(prog[i], profile.padVoicing, scaleFreqs, scaleSize, octaves, 1);
-    for (const f of chord) {
+    const chord = buildChord(prog[i], profile.padVoicing, scaleFreqs, scaleSize, 1);
+    for (let j = 0; j < chord.length; j++) {
       notes.push({
-        freq: f,
-        time: i * beatsPerChord * beatDur,
-        duration: beatsPerChord * beatDur * 0.9,
-        velocity: 0.28,
+        freq: chord[j],
+        time: i * beatsPerChord * beatDur + j * 0.025,
+        duration: beatsPerChord * beatDur * 0.96,
+        velocity: clamp(0.12 + params.dynamics * 0.16, 0.12, 0.32),
         voice: 'harmony',
+        pan: -0.25 + j * 0.14,
       });
     }
   }
   return notes;
 }
 
-// Melody: top line, with archetype-specific contour & rhythm.
-function generateMelody(profile, prog, scaleFreqs, scaleSize, beatDur, phraseBeats, dynamics, density) {
+function generateOstinato(profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord, params) {
+  const notes = [];
+  const density = params.rhythmDensity ?? 0.6;
+  const complexity = params.complexity ?? 0.6;
+  const step = profile.ostinatoStep ?? 0.5;
+  const totalBeats = prog.length * beatsPerChord;
+
+  if (complexity < 0.45 && density < 0.55) return notes;
+
+  let beat = 0;
+  let n = 0;
+  while (beat < totalBeats) {
+    const chordIndex = Math.min(prog.length - 1, Math.floor(beat / beatsPerChord));
+    const degree = prog[chordIndex] + profile.ostinatoPattern[n % profile.ostinatoPattern.length];
+    const octave = params.archetype === 'epic' ? 2 : 1;
+    const restChance = clamp(0.28 - density * 0.18 - complexity * 0.12, 0.02, 0.22);
+
+    if (rand() > restChance) {
+      notes.push({
+        freq: scaleDegreeFreq(degree, scaleFreqs, scaleSize, octave),
+        time: beat * beatDur,
+        duration: beatDur * step * 0.78,
+        velocity: clamp(0.12 + params.dynamics * 0.22, 0.12, 0.38),
+        voice: 'ostinato',
+        pan: 0.28,
+      });
+    }
+
+    beat += step;
+    n++;
+  }
+  return notes;
+}
+
+function generateCounterMelody(profile, prog, scaleFreqs, scaleSize, beatDur, phraseBeats, params) {
+  const notes = [];
+  const complexity = params.complexity ?? 0.6;
+  if (complexity < 0.5) return notes;
+
+  const stepBeats = params.archetype === 'tense' || params.archetype === 'epic' ? 1 : 2;
+  let timeBeat = 0;
+  let idx = 0;
+  while (timeBeat < phraseBeats) {
+    const chordIndex = Math.min(prog.length - 1, Math.floor(timeBeat / 2));
+    const degree = prog[chordIndex] + profile.counterPattern[idx % profile.counterPattern.length];
+    const duration = beatDur * stepBeats * 0.88;
+
+    notes.push({
+      freq: scaleDegreeFreq(degree, scaleFreqs, scaleSize, 1),
+      time: timeBeat * beatDur,
+      duration,
+      velocity: clamp(0.10 + params.dynamics * 0.14, 0.10, 0.28),
+      voice: 'counter',
+      pan: -0.32,
+    });
+
+    timeBeat += stepBeats;
+    idx++;
+  }
+  return notes;
+}
+
+function generateMelody(profile, prog, scaleFreqs, scaleSize, beatDur, phraseBeats, params) {
   const notes = [];
   const totalDur = phraseBeats * beatDur;
   const totalScale = scaleFreqs.length;
+  const density = clamp((params.rhythmDensity ?? 0.6) + (params.complexity ?? 0.6) * 0.12, 0.1, 1);
+  const dynamics = params.dynamics ?? 0.6;
+  const sectionLift = params.sectionType === 'C' ? 1 : params.sectionType === 'I' ? -1 : 0;
 
-  // Start cursor inside the chosen melody register
-  let cursor = Math.min(totalScale - 1, profile.melodyRegister * scaleSize + prog[0]);
-
+  let cursor = Math.min(totalScale - 1, (profile.melodyRegister + sectionLift) * scaleSize + prog[0]);
   let time = 0;
   let cell = pick(profile.rhythmCells).slice();
   let cellIdx = 0;
 
   while (time < totalDur) {
     if (cellIdx >= cell.length) {
-      // Pull a new rhythm cell — keeps the line evolving across the phrase
       cell = pick(profile.rhythmCells).slice();
       cellIdx = 0;
     }
@@ -215,32 +266,29 @@ function generateMelody(profile, prog, scaleFreqs, scaleSize, beatDur, phraseBea
     const dur = beatFrac * beatDur;
     if (time + dur > totalDur) break;
 
-    // Move along the scale: step (small interval) or leap (big interval)
-    const isStep = rand() < profile.stepBias;
+    const extraLeapChance = params.sectionType === 'C' ? 0.12 : 0;
+    const isStep = rand() < clamp(profile.stepBias - extraLeapChance, 0.25, 0.9);
     const interval = isStep ? pick(profile.intervalSet) : pick(profile.leapSet);
     const direction = rand() < 0.55 ? 1 : -1;
     cursor += interval * direction;
 
-    // Keep cursor inside scale array (reflect at boundaries instead of wrap,
-    // so the line bounces rather than teleports)
-    if (cursor < 0)             cursor = -cursor;
-    if (cursor >= totalScale)   cursor = totalScale - (cursor - totalScale + 1);
-    cursor = Math.max(0, Math.min(totalScale - 1, cursor));
+    if (cursor < 0) cursor = -cursor;
+    if (cursor >= totalScale) cursor = totalScale - (cursor - totalScale + 1);
+    cursor = clamp(cursor, 0, totalScale - 1);
 
-    // Density-controlled rests: less density → more silences in the melody
-    const restChance = Math.max(0, 0.25 - density * 0.2);
+    const restChance = clamp(0.22 - density * 0.18 - (params.complexity ?? 0.6) * 0.06, 0.02, 0.18);
     if (rand() < restChance) {
       time += dur;
       continue;
     }
 
-    const vel = Math.max(0.05, dynamics * (0.7 + rand() * 0.4));
     notes.push({
       freq: scaleFreqs[cursor],
       time,
       duration: dur * 0.92,
-      velocity: vel,
+      velocity: clamp(dynamics * (0.62 + rand() * 0.42), 0.08, 0.9),
       voice: 'melody',
+      pan: 0.06,
     });
 
     time += dur;
@@ -248,33 +296,27 @@ function generateMelody(profile, prog, scaleFreqs, scaleSize, beatDur, phraseBea
   return notes;
 }
 
-// Generate one phrase's worth of all three voices, sorted by start time.
-// Returns { notes, phraseDuration, progression }.
 export function generatePhrase(params) {
   const profile = getProfile(params.archetype);
-
-  // Use the archetype's signature scale by default, but honour an override
-  // (e.g. blended scale from sceneParser).
-  const scaleName = profile.scale;
-  const rootHz    = profile.rootHz;
-  const octaves   = profile.octaves;
+  const scaleName = params.scale || profile.scale;
+  const rootHz = profile.rootHz;
+  const octaves = profile.octaves;
   const scaleSize = getScaleSize(scaleName);
   const scaleFreqs = getScaleFrequencies(scaleName, rootHz, octaves);
 
   const beatDur = 60 / params.tempo;
   const prog = pick(profile.chordProgressions);
-
-  // 2 beats per chord = 8 beats for 4-chord, 6 for 3-chord, 4 for 2-chord.
-  const beatsPerChord = 2;
+  const beatsPerChord = params.sectionType === 'I' || params.sectionType === 'O' ? 3 : 2;
   const phraseBeats = prog.length * beatsPerChord;
   const phraseDuration = phraseBeats * beatDur;
 
-  const bassNotes    = generateBass    (profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord);
-  const harmonyNotes = generateHarmony (profile, prog, scaleFreqs, scaleSize, octaves, beatDur, beatsPerChord);
-  const melodyNotes  = generateMelody  (profile, prog, scaleFreqs, scaleSize, beatDur, phraseBeats,
-                                        params.dynamics, params.rhythmDensity);
+  const bassNotes = generateBass(profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord, params);
+  const harmonyNotes = generateHarmony(profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord, params);
+  const melodyNotes = generateMelody(profile, prog, scaleFreqs, scaleSize, beatDur, phraseBeats, params);
+  const ostinatoNotes = generateOstinato(profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord, params);
+  const counterNotes = generateCounterMelody(profile, prog, scaleFreqs, scaleSize, beatDur, phraseBeats, params);
 
-  const notes = [...bassNotes, ...harmonyNotes, ...melodyNotes]
+  const notes = [...bassNotes, ...harmonyNotes, ...ostinatoNotes, ...counterNotes, ...melodyNotes]
     .sort((a, b) => a.time - b.time);
 
   return { notes, phraseDuration, progression: prog };
