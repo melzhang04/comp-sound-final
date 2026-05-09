@@ -4,109 +4,96 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CinematicAI</title>
-  <style>
-    body { font-family: monospace; max-width: 700px; margin: 40px auto; padding: 0 20px; }
-    textarea { width: 100%; font-size: 1.1rem; padding: 12px; box-sizing: border-box; }
-    #hint { font-size: 0.8rem; color: #888; margin: 4px 0 16px; }
-    #output { display: none; }
-    h2 { margin: 0 0 12px; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-    td, th { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
-    th { background: #f4f4f4; }
-    .bar { background: #ddd; height: 14px; }
-    .bar-fill { background: #555; height: 14px; }
-    .params { background: #f9f9f9; padding: 12px; border: 1px solid #ccc; }
-    .params span { display: inline-block; margin-right: 24px; }
-    .label { color: #888; font-size: 0.75rem; display: block; }
-
-    /* L-system structure visualisation */
-    .lstring {
-      font-family: monospace; font-size: 1.05rem; letter-spacing: 2px;
-      background: #f9f9f9; padding: 10px 12px; border: 1px solid #ccc;
-      word-break: break-all; margin-bottom: 12px;
-    }
-    .lstring .axiom { color: #888; }
-    .lstring .arrow { color: #888; margin: 0 8px; }
-    #structure {
-      display: flex; align-items: flex-end; gap: 2px; height: 140px;
-      border: 1px solid #ccc; padding: 8px; background: #fafafa;
-    }
-    .seg {
-      flex: 1 1 auto; min-width: 14px;
-      display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-      position: relative;
-    }
-    .seg .bar2 {
-      width: 100%;
-      background: #555;
-      transition: height 0.2s;
-    }
-    .seg .lbl {
-      font-size: 0.65rem; color: #555; margin-top: 4px;
-    }
-    .legend { font-size: 0.75rem; color: #666; margin-top: 6px; }
-    .legend code { background: #f0f0f0; padding: 1px 4px; }
-
-    .controls { margin: 16px 0 8px; display: flex; gap: 8px; align-items: center; }
-    .controls button {
-      font-family: inherit; font-size: 0.95rem; padding: 8px 18px;
-      border: 1px solid #333; background: #fff; cursor: pointer;
-    }
-    .controls button:hover { background: #f0f0f0; }
-    .controls button:disabled { opacity: 0.4; cursor: not-allowed; }
-    #playStatus { font-size: 0.85rem; color: #666; margin-left: 8px; }
-
-    .seg.playing .bar2 { background: #c44 !important; }
-    .seg.playing .lbl  { color: #c44; font-weight: bold; }
-  </style>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>CinematicAI</h1>
-  <textarea id="sceneInput" rows="4" placeholder="a detective walking through a rainy city at night..."></textarea>
-  <div id="hint">Press Enter to analyse</div>
 
-  <div id="output">
-    <h2>Scene scores</h2>
-    <table id="scoresTable">
-      <thead><tr><th>Archetype</th><th>Score</th><th></th></tr></thead>
-      <tbody></tbody>
-    </table>
+  <div class="grain"></div>
 
-    <h2>Musical parameters</h2>
-    <div class="params">
-      <span><span class="label">ARCHETYPE</span><span id="pArchetype">—</span></span>
-      <span><span class="label">SCALE</span><span id="pScale">—</span></span>
-      <span><span class="label">TEMPO</span><span id="pTempo">—</span></span>
-      <span><span class="label">FM RATIO</span><span id="pFM">—</span></span>
-      <span><span class="label">REVERB</span><span id="pReverb">—</span></span>
-      <span><span class="label">DENSITY</span><span id="pDensity">—</span></span>
-      <span><span class="label">DYNAMICS</span><span id="pDynamics">—</span></span>
-      <span><span class="label">COMPLEXITY</span><span id="pComplexity">—</span></span>
-      <span><span class="label">TEXTURE</span><span id="pTexture">—</span></span>
-      <span><span class="label">CONFIDENCE</span><span id="pConfidence">—</span></span>
-      <span><span class="label">FILTER</span><span id="pFilter">—</span></span>
-      <span><span class="label">MATCHED KEYWORDS</span><span id="pMatches">—</span></span>
+  <header>
+    <div class="header-left">
+      <h1>CinematicAI</h1>
+      <span class="tagline">text → film score</span>
     </div>
+    <div class="header-right">
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-text" id="statusText">idle</span>
+    </div>
+  </header>
 
-    <div class="controls">
-      <button id="playBtn" disabled>▶ Play</button>
-      <button id="stopBtn" disabled>■ Stop</button>
-      <span id="playStatus"></span>
-    </div>
+  <main>
 
-    <h2>L-system structure</h2>
-    <div class="lstring">
-      <span class="axiom" id="pAxiom">—</span>
-      <span class="arrow">⟶</span>
-      <span id="pExpanded">—</span>
-    </div>
-    <div id="structure"></div>
-    <div class="legend">
-      Sections: <code>I</code> intro · <code>A/B</code> themes · <code>D</code> development ·
-      <code>C</code> climax · <code>R</code> resolution · <code>O</code> outro.
-      Bar height = intensity. Darker = lower register, lighter = higher.
-    </div>
-  </div>
+    <!-- Left: visualizer + phrase legend -->
+    <section class="visualizer-section">
+      <div class="screen-frame">
+        <canvas id="visualizerCanvas"></canvas>
+        <div class="screen-overlay" id="screenOverlay">
+          <span class="screen-prompt">enter a scene to begin</span>
+        </div>
+      </div>
+      <div class="phrase-legend">
+        <div class="legend-items">
+          <span class="legend-item"><span class="legend-dot ld-i"></span>intro</span>
+          <span class="legend-item"><span class="legend-dot ld-ab"></span>theme</span>
+          <span class="legend-item"><span class="legend-dot ld-d"></span>develop</span>
+          <span class="legend-item"><span class="legend-dot ld-c"></span>climax</span>
+          <span class="legend-item"><span class="legend-dot ld-r"></span>resolve</span>
+        </div>
+        <span class="arc-description" id="arcDescription"></span>
+      </div>
+    </section>
+
+    <!-- Right: input + analysis -->
+    <section class="control-section">
+
+      <div class="input-block">
+        <label class="input-label" for="sceneInput">Scene description</label>
+        <textarea id="sceneInput" rows="3"
+          placeholder="a detective walking through a rainy city at night…"></textarea>
+        <div class="input-meta">
+          <span class="input-hint">press Enter to analyse</span>
+          <span class="char-count" id="charCount">0</span>
+        </div>
+        <div class="button-row">
+          <button class="btn-generate" id="playBtn" disabled>
+            <span class="btn-icon">▶</span> Play
+          </button>
+          <button class="btn-stop" id="stopBtn" disabled>■</button>
+        </div>
+      </div>
+
+      <div class="analysis-panel" id="analysisPanel">
+
+        <!-- Archetype scores -->
+        <div class="panel-section">
+          <div class="section-header">
+            <span class="section-label">Archetype match</span>
+            <span class="dominant-badge" id="dominantBadge"></span>
+          </div>
+          <div class="archetype-scores" id="archetypeScores"></div>
+        </div>
+
+        <!-- Detected words -->
+        <div class="panel-section" id="detectedSection">
+          <span class="section-label">Detected signals</span>
+          <div class="detected-tags" id="detectedTags"></div>
+        </div>
+
+        <!-- Musical params -->
+        <div class="panel-section">
+          <span class="section-label">Musical parameters</span>
+          <div class="param-grid" id="paramGrid"></div>
+        </div>
+
+      </div>
+
+    </section>
+  </main>
+
+  <footer>
+    <span>Columbia Computational Sound &middot; Spring 2026</span>
+    <span>S. Agbekpenou &middot; M. Zhang &middot; A. Livias</span>
+  </footer>
 
   <script type="module" src="js/main.js"></script>
 </body>

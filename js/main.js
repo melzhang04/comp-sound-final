@@ -1,124 +1,256 @@
-import { parseScene } from './sceneParser.js';
-import { generatePiece, GRAMMARS } from './lsystem.js';
-import { CinematicEngine } from './audio.js';
+import { parseScene }               from './sceneParser.js';
+import { generatePiece, GRAMMARS }  from './lsystem.js';
+import { CinematicEngine }          from './audio.js';
 
-const input        = document.getElementById('sceneInput');
-const output       = document.getElementById('output');
-const tbody        = document.querySelector('#scoresTable tbody');
-const structureEl  = document.getElementById('structure');
-const playBtn      = document.getElementById('playBtn');
-const stopBtn      = document.getElementById('stopBtn');
-const playStatus   = document.getElementById('playStatus');
+const textarea        = document.getElementById('sceneInput');
+const analysisPanel   = document.getElementById('analysisPanel');
+const archetypeScores = document.getElementById('archetypeScores');
+const detectedSection = document.getElementById('detectedSection');
+const detectedTags    = document.getElementById('detectedTags');
+const paramGrid       = document.getElementById('paramGrid');
+const dominantBadge   = document.getElementById('dominantBadge');
+const arcDescription  = document.getElementById('arcDescription');
+const screenOverlay   = document.getElementById('screenOverlay');
+const playBtn         = document.getElementById('playBtn');
+const stopBtn         = document.getElementById('stopBtn');
+const statusDot       = document.getElementById('statusDot');
+const statusText      = document.getElementById('statusText');
+const charCount       = document.getElementById('charCount');
+const canvas          = document.getElementById('visualizerCanvas');
 
 const engine = new CinematicEngine();
-
-// Latest analysed scene + L-system piece. Re-played by the Play button.
 let latestParams = null;
 let latestPiece  = null;
+let highlightRAF = 0;
 
-function registerColor(reg) {
-  // -2 -> #222 (dark/low), 0 -> #555, +2 -> #aaa (light/high)
-  const t = (reg + 2) / 4;
-  const v = Math.round(34 + t * (170 - 34));
-  return `rgb(${v},${v},${v})`;
-}
+const ARCHETYPE_COLORS = {
+  tense:       'var(--col-tense)',
+  romantic:    'var(--col-romantic)',
+  epic:        'var(--col-epic)',
+  mysterious:  'var(--col-mysterious)',
+  peaceful:    'var(--col-peaceful)',
+  melancholic: 'var(--col-melancholic)',
+};
 
-function renderStructureBars(sections) {
-  structureEl.innerHTML = sections.map(s => {
-    const h = Math.round(8 + s.intensity * 100);
+const ARCHETYPE_DESCRIPTIONS = {
+  tense:       'phrygian dominant · driving 8th-note pulse · staccato',
+  romantic:    'lydian · legato melody · lush maj7 pads',
+  epic:        'hungarian minor · marching stomp · brass attack',
+  mysterious:  'octatonic · sparse bass · bell/glass timbre',
+  peaceful:    'pentatonic major · step-wise melody · harp pads',
+  melancholic: 'harmonic minor · bowed bass · fading arc',
+};
+
+const ARC_DESCRIPTIONS = {
+  tense:       'irregular bursts · tension never fully resolves',
+  romantic:    'quiet open · swells in the middle · soft resolve',
+  epic:        'single continuous build from first phrase to last',
+  mysterious:  'scattered silences · energy never settles',
+  peaceful:    'gentle waves · serene plateau throughout',
+  melancholic: 'opens heavy · slowly dissolves into silence',
+};
+
+// Canvas bar colors per L-system section type
+const SECTION_COLORS = {
+  I: '#383838', A: '#555555', B: '#4a4a4a',
+  D: '#707070', C: '#c8c8c8', R: '#454545', O: '#2a2a2a',
+};
+
+textarea.addEventListener('input', () => {
+  if (charCount) charCount.textContent = textarea.value.length;
+});
+
+textarea.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || e.shiftKey) return;
+  e.preventDefault();
+  const text = textarea.value.trim();
+  if (!text) return;
+
+  engine.stop();
+  cancelAnimationFrame(highlightRAF);
+
+  const p     = parseScene(text);
+  const piece = generatePiece(p);
+  latestParams = p;
+  latestPiece  = piece;
+
+  renderScores(p);
+  renderDetected(p);
+  renderParams(p);
+  arcDescription.textContent = ARC_DESCRIPTIONS[p.archetype] ?? '';
+
+  drawCanvas(piece.sections, -1);
+  screenOverlay.classList.add('hidden');
+  analysisPanel.classList.add('visible');
+  playBtn.disabled = false;
+  setStatus('ready');
+});
+
+// ── Render helpers ────────────────────────────────────────────────
+
+function renderScores(p) {
+  const maxScore = Math.max(...Object.values(p.scores), 1);
+  const sorted   = Object.entries(p.scores).sort((a, b) => b[1] - a[1]);
+  const color    = ARCHETYPE_COLORS[p.archetype];
+
+  dominantBadge.textContent       = p.archetype;
+  dominantBadge.style.color       = color;
+  dominantBadge.style.borderColor = color;
+
+  archetypeScores.innerHTML = sorted.map(([name, score]) => {
+    const pct      = Math.round(score / maxScore * 100);
+    const col      = ARCHETYPE_COLORS[name];
+    const dominant = name === p.archetype;
     return `
-      <div class="seg" data-idx="${s.index}"
-           title="${s.type} · intensity ${s.intensity.toFixed(2)} · register ${s.register >= 0 ? '+' : ''}${s.register}">
-        <div class="bar2" style="height:${h}px; background:${registerColor(s.register)}"></div>
-        <div class="lbl">${s.type}</div>
+      <div class="archetype-row ${dominant ? 'dominant' : ''}">
+        <div class="archetype-row-top">
+          <span class="arch-color-dot" style="background:${col}"></span>
+          <span class="arch-name" ${dominant ? `style="color:${col}"` : ''}>${name}</span>
+          <span class="arch-score">${score > 0 ? score : '—'}</span>
+        </div>
+        ${score > 0 ? `
+          <div class="arch-bar-track">
+            <div class="arch-bar-fill" style="width:${pct}%;background:${col}"></div>
+          </div>
+          <span class="arch-desc">${ARCHETYPE_DESCRIPTIONS[name] ?? ''}</span>
+        ` : ''}
       </div>`;
   }).join('');
 }
 
-function analyse(text) {
-  const p = parseScene(text);
+function renderDetected(p) {
+  const keywords = p.matchedKeywords ?? [];
+  const seen     = new Set();
+  const chips    = keywords
+    .filter(k => { if (seen.has(k.label)) return false; seen.add(k.label); return true; })
+    .slice(0, 12)
+    .map(k => {
+      const cls = k.source === 'cinematic' ? 'tag-cinematic'
+                : k.source === 'phrase'    ? 'tag-genre'
+                : 'tag-modifier';
+      return `<span class="tag ${cls}">${k.label}</span>`;
+    });
 
-  const maxScore = Math.max(...Object.values(p.scores), 1);
-  tbody.innerHTML = Object.entries(p.scores)
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, score]) => `
-      <tr>
-        <td>${name}</td>
-        <td>${score}</td>
-        <td><div class="bar"><div class="bar-fill" style="width:${Math.round(score / maxScore * 100)}%"></div></div></td>
-      </tr>`)
-    .join('');
-
-  document.getElementById('pArchetype').textContent = p.archetype;
-  document.getElementById('pScale').textContent     = p.scale;
-  document.getElementById('pTempo').textContent     = p.tempo + ' bpm';
-  document.getElementById('pFM').textContent        = p.fmCarrier + ':' + p.fmModulator;
-  document.getElementById('pReverb').textContent    = p.reverbWet;
-  document.getElementById('pDensity').textContent   = p.rhythmDensity;
-  document.getElementById('pDynamics').textContent  = p.dynamics;
-  document.getElementById('pFilter').textContent    = p.filterType + ' @ ' + p.filterFreq + ' Hz';
-
-  const complexityEl = document.getElementById('pComplexity');
-  const textureEl = document.getElementById('pTexture');
-  const confidenceEl = document.getElementById('pConfidence');
-  const matchesEl = document.getElementById('pMatches');
-  if (complexityEl) complexityEl.textContent = p.complexity ?? '—';
-  if (textureEl) textureEl.textContent = p.texture ?? '—';
-  if (confidenceEl) confidenceEl.textContent = p.confidence ?? '—';
-  if (matchesEl) {
-    const labels = (p.matchedKeywords ?? []).map(m => m.label);
-    matchesEl.textContent = labels.length ? [...new Set(labels)].slice(0, 8).join(', ') : 'none';
+  if (chips.length === 0) {
+    detectedSection.style.display = 'none';
+  } else {
+    detectedSection.style.display = '';
+    detectedTags.innerHTML = chips.join('');
   }
-
-  const piece = generatePiece(p);
-  const grammar = GRAMMARS[p.archetype] ?? GRAMMARS.tense;
-  document.getElementById('pAxiom').textContent    = grammar.axiom;
-  document.getElementById('pExpanded').textContent = piece.expanded;
-  renderStructureBars(piece.sections);
-
-  latestParams = p;
-  latestPiece  = piece;
-  playBtn.disabled = false;
-  output.style.display = 'block';
 }
 
-input.addEventListener('keydown', (e) => {
-  if (e.key !== 'Enter' || e.shiftKey) return;
-  e.preventDefault();
-  const text = input.value.trim();
-  if (!text) return;
-  engine.stop();
-  analyse(text);
-});
+function renderParams(p) {
+  const entries = [
+    { key: 'Archetype',  val: p.archetype,              color: ARCHETYPE_COLORS[p.archetype] },
+    { key: 'Scale',      val: p.scale.replace(/_/g, ' ')                                     },
+    { key: 'Tempo',      val: p.tempo + ' bpm',          bar: (p.tempo - 30) / 190            },
+    { key: 'FM ratio',   val: p.fmCarrier + ':' + p.fmModulator                              },
+    { key: 'Reverb',     val: p.reverbWet,               bar: p.reverbWet                     },
+    { key: 'Density',    val: p.rhythmDensity,           bar: p.rhythmDensity                 },
+    { key: 'Dynamics',   val: p.dynamics,                bar: p.dynamics                      },
+    { key: 'Complexity', val: p.complexity ?? '—',       bar: p.complexity                    },
+  ];
 
-let highlightRAF = 0;
+  paramGrid.innerHTML = entries.map(({ key, val, bar, color }) => `
+    <div class="param-cell">
+      <div class="param-key">${key}</div>
+      <div class="param-val"${color ? ` style="color:${color}"` : ''}>${val}</div>
+      ${bar != null ? `
+        <div class="param-bar-track">
+          <div class="param-bar-fill" style="width:${Math.round(Math.min(1, Math.max(0, bar)) * 100)}%"></div>
+        </div>` : ''}
+    </div>`).join('');
+}
+
+// ── Canvas visualizer ─────────────────────────────────────────────
+
+function drawCanvas(sections, activeSectionIndex) {
+  const ctx2d = canvas.getContext('2d');
+  const dpr   = window.devicePixelRatio || 1;
+  const W     = canvas.offsetWidth  || 600;
+  const H     = canvas.offsetHeight || 120;
+
+  if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
+    canvas.width  = W * dpr;
+    canvas.height = H * dpr;
+    ctx2d.scale(dpr, dpr);
+  }
+
+  ctx2d.clearRect(0, 0, W, H);
+
+  const n       = sections.length;
+  const barW    = W / n;
+  const maxBarH = H * 0.72;
+  const baseY   = H * 0.88;
+  const pad     = 3;
+
+  for (let i = 0; i < n; i++) {
+    const { type, intensity } = sections[i];
+    const isActive = i === activeSectionIndex;
+    const isPast   = activeSectionIndex >= 0 && i < activeSectionIndex;
+    const barH     = Math.max(3, intensity * maxBarH);
+    const x        = i * barW;
+    const y        = baseY - barH;
+
+    let color = SECTION_COLORS[type] ?? '#555555';
+    if (isActive)    color = '#d47c2f';
+    else if (isPast) color += '55';
+
+    ctx2d.fillStyle = color;
+    ctx2d.fillRect(x + pad, y, barW - pad * 2, barH);
+
+    ctx2d.fillStyle = isActive ? '#d47c2f' : '#555555';
+    ctx2d.font      = `${Math.max(9, Math.floor(barW * 0.35))}px monospace`;
+    ctx2d.textAlign = 'center';
+    ctx2d.fillText(type, x + barW / 2, baseY + 14);
+  }
+
+  if (activeSectionIndex >= 0 && activeSectionIndex < n) {
+    const x = activeSectionIndex * barW + barW / 2;
+    ctx2d.strokeStyle = '#d47c2f';
+    ctx2d.lineWidth   = 1.5;
+    ctx2d.beginPath();
+    ctx2d.moveTo(x, 0);
+    ctx2d.lineTo(x, baseY + 4);
+    ctx2d.stroke();
+  }
+}
+
+// ── Playback highlight loop ───────────────────────────────────────
 
 function highlightLoop() {
+  if (!latestPiece) return;
   const idx = engine.currentSectionIndex();
-  for (const seg of structureEl.querySelectorAll('.seg')) {
-    seg.classList.toggle('playing', Number(seg.dataset.idx) === idx);
-  }
+  drawCanvas(latestPiece.sections, idx);
 
   if (engine.isPlaying) {
     const pos = Math.max(0, engine.currentPosition());
-    const total = engine.totalDuration;
-    playStatus.textContent = `${pos.toFixed(1)}s / ${total.toFixed(1)}s`;
+    statusText.textContent = `${pos.toFixed(1)}s / ${engine.totalDuration.toFixed(1)}s`;
     highlightRAF = requestAnimationFrame(highlightLoop);
   } else {
-    playStatus.textContent = '';
-    for (const seg of structureEl.querySelectorAll('.seg')) {
-      seg.classList.remove('playing');
-    }
-    playBtn.disabled = !latestPiece;
+    setStatus('done');
+    playBtn.disabled = false;
     stopBtn.disabled = true;
+    drawCanvas(latestPiece.sections, -1);
   }
 }
+
+// ── Status ────────────────────────────────────────────────────────
+
+function setStatus(state) {
+  statusDot.className = 'status-dot' +
+    (state === 'playing' ? ' active' : (state === 'ready' || state === 'done') ? ' done' : '');
+  if (state !== 'playing') statusText.textContent = state;
+}
+
+// ── Transport ─────────────────────────────────────────────────────
 
 playBtn.addEventListener('click', () => {
   if (!latestPiece || !latestParams) return;
   engine.playPiece(latestPiece, latestParams);
   playBtn.disabled = true;
   stopBtn.disabled = false;
+  setStatus('playing');
   cancelAnimationFrame(highlightRAF);
   highlightRAF = requestAnimationFrame(highlightLoop);
 });
@@ -126,10 +258,8 @@ playBtn.addEventListener('click', () => {
 stopBtn.addEventListener('click', () => {
   engine.stop();
   cancelAnimationFrame(highlightRAF);
-  for (const seg of structureEl.querySelectorAll('.seg')) {
-    seg.classList.remove('playing');
-  }
-  playStatus.textContent = '';
-  playBtn.disabled = !latestPiece;
+  playBtn.disabled = false;
   stopBtn.disabled = true;
+  setStatus('stopped');
+  if (latestPiece) drawCanvas(latestPiece.sections, -1);
 });
