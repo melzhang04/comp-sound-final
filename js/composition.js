@@ -19,15 +19,16 @@ const ARCHETYPE = {
       [0.5, 0.5, 0.25, 0.25, 1],
       [0.25, 0.75, 0.5, 0.5],
     ],
-    articulDur:     0.72,   // short/staccato
+    articulDur:     0.72,
     melodyRegister: 1,
     bassOctave:     -1,
     padVoicing:     [0, 2, 4],
     bassRhythms: [
-      [0.5, 0.5, 0.5, 0.5],          // driving 8ths
-      [0.25, 0.25, 0.5, 0.5, 0.5],   // syncopated
-      [0.5, 0.25, 0.25, 1],          // mixed
+      [0.5, 0.5, 0.5, 0.5],
+      [0.25, 0.25, 0.5, 0.5, 0.5],
+      [0.5, 0.25, 0.25, 1],
     ],
+    percInterval: 0.5,  // 8th-note tick on every offbeat
   },
 
   romantic: {
@@ -51,7 +52,7 @@ const ARCHETYPE = {
     articulDur:     0.96,   // legato
     melodyRegister: 1,
     bassOctave:     -1,
-    padVoicing:     [0, 2, 4, 6],   // major-7th chord — lush and warm
+    padVoicing:     [0, 2, 4, 6],   // major-7th chord, lush and warm
     bassRhythms: [
       [2],
       [1, 1],
@@ -80,12 +81,13 @@ const ARCHETYPE = {
     articulDur:     0.82,
     melodyRegister: 3,
     bassOctave:     -1,
-    padVoicing:     [0, 4, 7],   // root + P5 + octave = open cinematic power chord
+    padVoicing:     [0, 4, 7],
     bassRhythms: [
-      [1, 1],           // half notes
-      [0.5, 0.5, 1],    // 8th 8th quarter
+      [1, 1],
+      [0.5, 0.5, 1],
       [1, 0.5, 0.5],
     ],
+    percInterval: 1,    // quarter-note taiko boom on every beat
   },
 
   mysterious: {
@@ -107,12 +109,13 @@ const ARCHETYPE = {
       [0.5, 0.5, 1.5, 0.5, 1],
     ],
     articulDur:     0.60,
+    melodyRegister: 2,
     bassOctave:     -1,
     padVoicing:     [0, 3, 5, 7],  // wide cluster: root + P4 + aug5 + maj7 (eerie)
     bassRhythms: [
       [2],
       [2],
-      [1.5, 0.5],   // occasional subdivision
+      [1.5, 0.5],
     ],
   },
 
@@ -279,6 +282,30 @@ function generateMelody(profile, prog, scaleFreqs, scaleSize, beatDur, phraseBea
   return notes;
 }
 
+function generatePercussion(profile, prog, beatDur, beatsPerChord) {
+  if (!profile.percInterval) return [];
+  const notes    = [];
+  const totalDur = prog.length * beatsPerChord * beatDur;
+  const step     = profile.percInterval * beatDur;
+  let time = 0;
+  let beat = 0;
+
+  while (time < totalDur - 0.001) {
+    // Accent downbeats (every beatsPerChord beats) louder than the rest
+    const isDownbeat = Math.abs(beat % beatsPerChord) < 0.001;
+    notes.push({
+      freq:     0,
+      time,
+      duration: step * 0.5,
+      velocity: isDownbeat ? 0.9 : 0.6,
+      voice:    'percussion',
+    });
+    time += step;
+    beat += profile.percInterval;
+  }
+  return notes;
+}
+
 export function generatePhrase(params) {
   const profile       = getProfile(params.archetype);
   const activeScale   = params.scale ?? profile.scale;
@@ -291,10 +318,11 @@ export function generatePhrase(params) {
   const phraseDuration = phraseBeats * beatDur;
 
   const notes = [
-    ...generateBass   (profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord),
-    ...generateHarmony(profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord),
-    ...generateMelody (profile, prog, scaleFreqs, scaleSize, beatDur, phraseBeats,
-                       params.dynamics, params.rhythmDensity),
+    ...generateBass       (profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord),
+    ...generateHarmony    (profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord),
+    ...generateMelody     (profile, prog, scaleFreqs, scaleSize, beatDur, phraseBeats,
+                           params.dynamics, params.rhythmDensity),
+    ...generatePercussion (profile, prog, beatDur, beatsPerChord),
   ].sort((a, b) => a.time - b.time);
 
   return { notes, phraseDuration, progression: prog };
