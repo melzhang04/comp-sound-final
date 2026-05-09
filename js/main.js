@@ -2,6 +2,7 @@ import { parseScene }       from './sceneParser.js';
 import { generateStructure } from './lsystem.js';
 import { generatePhrase }    from './composition.js';
 import { AudioEngine }       from './audioEngine.js';
+import { Visualizer }        from './visualizer.js';
 
 const input      = document.getElementById('sceneInput');
 const output     = document.getElementById('output');
@@ -10,8 +11,9 @@ const playBtn    = document.getElementById('playBtn');
 const stopBtn    = document.getElementById('stopBtn');
 const statusText = document.getElementById('statusText');
 
-const engine = new AudioEngine();
-let currentParams = null;
+const engine     = new AudioEngine();
+const visualizer = new Visualizer(document.getElementById('visualizerCanvas'));
+let currentParams    = null;
 let currentStructure = null;
 
 // analyse on Enter
@@ -48,15 +50,8 @@ input.addEventListener('keydown', (e) => {
   document.getElementById('pDynamics').textContent  = p.dynamics;
   document.getElementById('pFilter').textContent    = p.filterType + ' @ ' + p.filterFreq + ' Hz';
 
-  // L-system visualizer
-  const maxBarHeight = 48;
-  document.getElementById('lsystemRow').innerHTML = currentStructure
-    .map(({ symbol, intensity }) => `
-      <div class="phrase-block">
-        <div class="phrase-bar sym-${symbol}" style="height:${Math.max(4, Math.round(intensity * maxBarHeight))}px"></div>
-        <span class="phrase-symbol">${symbol}</span>
-      </div>`)
-    .join('');
+  // Draw static L-system structure on canvas
+  visualizer.drawStatic(currentStructure, p);
 
   output.style.display = 'block';
   playBtn.disabled = false;
@@ -75,6 +70,7 @@ playBtn.addEventListener('click', async () => {
   statusText.textContent = 'playing…';
 
   engine.play(currentStructure, generatePhrase, currentParams);
+  visualizer.start(currentStructure, currentParams, engine.ctx);
 
   const beatDuration = 60 / currentParams.tempo;
   const totalDuration = currentStructure.reduce((acc, { symbol, intensity }) => {
@@ -84,6 +80,7 @@ playBtn.addEventListener('click', async () => {
   }, 0);
 
   setTimeout(() => {
+    visualizer.stop();
     playBtn.disabled = false;
     stopBtn.disabled = true;
     statusText.textContent = 'done';
@@ -93,6 +90,7 @@ playBtn.addEventListener('click', async () => {
 // stop
 stopBtn.addEventListener('click', () => {
   engine.stop();
+  visualizer.stop();
   playBtn.disabled = false;
   stopBtn.disabled = true;
   statusText.textContent = 'stopped';
