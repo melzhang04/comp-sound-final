@@ -18,6 +18,46 @@
     .params { background: #f9f9f9; padding: 12px; border: 1px solid #ccc; }
     .params span { display: inline-block; margin-right: 24px; }
     .label { color: #888; font-size: 0.75rem; display: block; }
+
+    /* L-system structure visualisation */
+    .lstring {
+      font-family: monospace; font-size: 1.05rem; letter-spacing: 2px;
+      background: #f9f9f9; padding: 10px 12px; border: 1px solid #ccc;
+      word-break: break-all; margin-bottom: 12px;
+    }
+    .lstring .axiom { color: #888; }
+    .lstring .arrow { color: #888; margin: 0 8px; }
+    #structure {
+      display: flex; align-items: flex-end; gap: 2px; height: 140px;
+      border: 1px solid #ccc; padding: 8px; background: #fafafa;
+    }
+    .seg {
+      flex: 1 1 auto; min-width: 14px;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+      position: relative;
+    }
+    .seg .bar2 {
+      width: 100%;
+      background: #555;
+      transition: height 0.2s;
+    }
+    .seg .lbl {
+      font-size: 0.65rem; color: #555; margin-top: 4px;
+    }
+    .legend { font-size: 0.75rem; color: #666; margin-top: 6px; }
+    .legend code { background: #f0f0f0; padding: 1px 4px; }
+
+    .controls { margin: 16px 0 8px; display: flex; gap: 8px; align-items: center; }
+    .controls button {
+      font-family: inherit; font-size: 0.95rem; padding: 8px 18px;
+      border: 1px solid #333; background: #fff; cursor: pointer;
+    }
+    .controls button:hover { background: #f0f0f0; }
+    .controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+    #playStatus { font-size: 0.85rem; color: #666; margin-left: 8px; }
+
+    .seg.playing .bar2 { background: #c44 !important; }
+    .seg.playing .lbl  { color: #c44; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -41,7 +81,30 @@
       <span><span class="label">REVERB</span><span id="pReverb">—</span></span>
       <span><span class="label">DENSITY</span><span id="pDensity">—</span></span>
       <span><span class="label">DYNAMICS</span><span id="pDynamics">—</span></span>
+      <span><span class="label">COMPLEXITY</span><span id="pComplexity">—</span></span>
+      <span><span class="label">TEXTURE</span><span id="pTexture">—</span></span>
+      <span><span class="label">CONFIDENCE</span><span id="pConfidence">—</span></span>
       <span><span class="label">FILTER</span><span id="pFilter">—</span></span>
+      <span><span class="label">MATCHED KEYWORDS</span><span id="pMatches">—</span></span>
+    </div>
+
+    <div class="controls">
+      <button id="playBtn" disabled>▶ Play</button>
+      <button id="stopBtn" disabled>■ Stop</button>
+      <span id="playStatus"></span>
+    </div>
+
+    <h2>L-system structure</h2>
+    <div class="lstring">
+      <span class="axiom" id="pAxiom">—</span>
+      <span class="arrow">⟶</span>
+      <span id="pExpanded">—</span>
+    </div>
+    <div id="structure"></div>
+    <div class="legend">
+      Sections: <code>I</code> intro · <code>A/B</code> themes · <code>D</code> development ·
+      <code>C</code> climax · <code>R</code> resolution · <code>O</code> outro.
+      Bar height = intensity. Darker = lower register, lighter = higher.
     </div>
   </div>
 
