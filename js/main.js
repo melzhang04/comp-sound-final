@@ -1,9 +1,20 @@
-import { parseScene } from './sceneParser.js';
+import { parseScene }       from './sceneParser.js';
+import { generateStructure } from './lsystem.js';
+import { generatePhrase }    from './composition.js';
+import { AudioEngine }       from './audioEngine.js';
 
-const input   = document.getElementById('sceneInput');
-const output  = document.getElementById('output');
-const tbody   = document.querySelector('#scoresTable tbody');
+const input      = document.getElementById('sceneInput');
+const output     = document.getElementById('output');
+const tbody      = document.querySelector('#scoresTable tbody');
+const playBtn    = document.getElementById('playBtn');
+const stopBtn    = document.getElementById('stopBtn');
+const statusText = document.getElementById('statusText');
 
+const engine = new AudioEngine();
+let currentParams = null;
+let currentStructure = null;
+
+// analyse on Enter
 input.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || e.shiftKey) return;
   e.preventDefault();
@@ -12,6 +23,8 @@ input.addEventListener('keydown', (e) => {
   if (!text) return;
 
   const p = parseScene(text);
+  currentParams    = p;
+  currentStructure = generateStructure(p.archetype, 16);
 
   // Score table
   const maxScore = Math.max(...Object.values(p.scores), 1);
@@ -21,7 +34,7 @@ input.addEventListener('keydown', (e) => {
       <tr>
         <td>${name}</td>
         <td>${score}</td>
-        <td><div class="bar"><div class="bar-fill" style="width:${Math.round(score/maxScore*100)}%"></div></div></td>
+        <td><div class="bar"><div class="bar-fill" style="width:${Math.round(score / maxScore * 100)}%"></div></div></td>
       </tr>`)
     .join('');
 
@@ -35,5 +48,52 @@ input.addEventListener('keydown', (e) => {
   document.getElementById('pDynamics').textContent  = p.dynamics;
   document.getElementById('pFilter').textContent    = p.filterType + ' @ ' + p.filterFreq + ' Hz';
 
+  // L-system visualizer
+  const maxBarHeight = 48;
+  document.getElementById('lsystemRow').innerHTML = currentStructure
+    .map(({ symbol, intensity }) => `
+      <div class="phrase-block">
+        <div class="phrase-bar sym-${symbol}" style="height:${Math.max(4, Math.round(intensity * maxBarHeight))}px"></div>
+        <span class="phrase-symbol">${symbol}</span>
+      </div>`)
+    .join('');
+
   output.style.display = 'block';
+  playBtn.disabled = false;
+  statusText.textContent = 'ready';
+});
+
+// play
+playBtn.addEventListener('click', async () => {
+  if (!currentParams || !currentStructure) return;
+
+  await engine.init();
+  engine.stop();
+
+  playBtn.disabled = true;
+  stopBtn.disabled = false;
+  statusText.textContent = 'playing…';
+
+  engine.play(currentStructure, generatePhrase, currentParams);
+
+  const beatDuration = 60 / currentParams.tempo;
+  const totalDuration = currentStructure.reduce((acc, { symbol, intensity }) => {
+    if (symbol === 'r') return acc + beatDuration * 4;
+    const phraseBeats = Math.round(4 + (currentParams.rhythmDensity * (0.5 + intensity * 0.5)) * 12);
+    return acc + phraseBeats * beatDuration;
+  }, 0);
+
+  setTimeout(() => {
+    playBtn.disabled = false;
+    stopBtn.disabled = true;
+    statusText.textContent = 'done';
+  }, totalDuration * 1000 + 500);
+});
+
+// stop
+stopBtn.addEventListener('click', () => {
+  engine.stop();
+  playBtn.disabled = false;
+  stopBtn.disabled = true;
+  statusText.textContent = 'stopped';
 });
