@@ -1,5 +1,5 @@
 // WebAudio FM synthesis engine. Three voices (melody, bass, pads) each
-// get their own signal bus so we can treat them differently — bass stays
+// get their own signal bus so we can treat them differently. bass stays
 // mostly dry because reverb makes low end muddy, pads get drenched in
 // reverb because that's where the space comes from, melody follows
 // whatever the scene parser decides.
@@ -11,6 +11,8 @@ const PROFILES = {
     portamento: false,
     bassGain: 0.65, bassAttack: 0.008, bassRelease: 0.06,
     padFmDepth: 0.35, padMod2Ratio: 3.1, padAttack: 0.12, padRelease: 0.2, padGain: 0.18,
+    modulationShape: 'standard',
+    padFilterFreq: 1500,
   },
   romantic: {
     fmDepth: 0.5, attack: 0.18, release: 0.35, unison: 3, detune: 3,
@@ -18,6 +20,8 @@ const PROFILES = {
     portamento: true, portamentoTime: 0.09,
     bassGain: 0.5, bassAttack: 0.1, bassRelease: 0.35,
     padFmDepth: 0.08, padMod2Ratio: 2.0, padAttack: 0.45, padRelease: 0.65, padGain: 0.2,
+    modulationShape: 'string',
+    padFilterFreq: 1200,
   },
   epic: {
     fmDepth: 1.5, attack: 0.012, release: 0.12, unison: 3, detune: 8,
@@ -25,6 +29,9 @@ const PROFILES = {
     portamento: false,
     bassGain: 0.85, bassAttack: 0.015, bassRelease: 0.1,
     padFmDepth: 0.5, padMod2Ratio: 3.5, padAttack: 0.18, padRelease: 0.3, padGain: 0.22,
+    // brass attack: starts bright (high modulation), settles into sustain
+    modulationShape: 'brass',
+    padFilterFreq: 2800,
   },
   mysterious: {
     fmDepth: 3.5, attack: 0.25, release: 0.7, unison: 1, detune: 0,
@@ -32,6 +39,9 @@ const PROFILES = {
     portamento: false,
     bassGain: 0.4, bassAttack: 0.3, bassRelease: 0.8,
     padFmDepth: 1.2, padMod2Ratio: 4.5, padAttack: 0.55, padRelease: 0.95, padGain: 0.14,
+    // bell/chime: max modulation at attack, fast exponential decay
+    modulationShape: 'bell',
+    padFilterFreq: 900,
   },
   peaceful: {
     fmDepth: 0.3, attack: 0.12, release: 0.28, unison: 2, detune: 2,
@@ -39,6 +49,9 @@ const PROFILES = {
     portamento: true, portamentoTime: 0.12,
     bassGain: 0.5, bassAttack: 0.12, bassRelease: 0.3,
     padFmDepth: 0.06, padMod2Ratio: 1.5, padAttack: 0.5, padRelease: 0.7, padGain: 0.2,
+    // flute: near-pure tone with slight breathiness on the attack
+    modulationShape: 'flute',
+    padFilterFreq: 1600,
   },
   melancholic: {
     fmDepth: 0.9, attack: 0.09, release: 0.45, unison: 2, detune: 4,
@@ -46,6 +59,9 @@ const PROFILES = {
     portamento: false,
     bassGain: 0.55, bassAttack: 0.1, bassRelease: 0.45,
     padFmDepth: 0.2, padMod2Ratio: 2.5, padAttack: 0.4, padRelease: 0.6, padGain: 0.18,
+    // string: slow modulation ramp, steady bow pressure feel
+    modulationShape: 'string',
+    padFilterFreq: 1100,
   },
 };
 
@@ -176,6 +192,10 @@ export class AudioEngine {
     const padWet = Math.min(0.85, params.reverbWet * 1.5);
     this.padDry.gain.setTargetAtTime(1 - padWet * 0.55, now, 0.1);
     this.padWet.gain.setTargetAtTime(padWet,             now, 0.1);
+
+    // pad filter cutoff varies per archetype — epic gets bright open pads, mysterious gets dark
+    const synthProfile = PROFILES[params.archetype] ?? PROFILES.tense;
+    this.padFilter.frequency.setTargetAtTime(synthProfile.padFilterFreq ?? 1800, now, 0.15);
   }
 
   // each unison voice gets its own FM pair + panner so they spread across
@@ -216,9 +236,6 @@ export class AudioEngine {
       const modGain = ctx.createGain();
       mod.type            = 'sine';
       mod.frequency.value = modFreq;
-      modGain.gain.setValueAtTime(0, tStart);
-      modGain.gain.linearRampToValueAtTime(modIndex, tStart + Math.min(0.03, duration * 0.15));
-      modGain.gain.exponentialRampToValueAtTime(Math.max(1, modIndex * 0.3), tStart + duration);
 
       const carrier = ctx.createOscillator();
       carrier.type = 'sine';
@@ -230,6 +247,35 @@ export class AudioEngine {
         carrier.frequency.linearRampToValueAtTime(voiceFreq, tStart + profile.portamentoTime);
       } else {
         carrier.frequency.setValueAtTime(voiceFreq, tStart);
+      }
+
+      // Modulation envelope shape determines the timbral character
+      const shape = profile.modulationShape ?? 'standard';
+      if (shape === 'brass') {
+        // starts overbright on the attack (like a brass tongue), settles into body
+        modGain.gain.setValueAtTime(modIndex * 2.2, tStart);
+        modGain.gain.exponentialRampToValueAtTime(Math.max(0.5, modIndex * 0.5), tStart + Math.min(0.08, duration * 0.25));
+        modGain.gain.exponentialRampToValueAtTime(Math.max(0.1, modIndex * 0.2), tStart + duration);
+      } else if (shape === 'bell') {
+        // full brightness at the strike, fast exponential decay, glass/chime
+        modGain.gain.setValueAtTime(modIndex * 4.0, tStart + 0.001);
+        modGain.gain.exponentialRampToValueAtTime(Math.max(0.1, modIndex * 0.04), tStart + Math.min(0.25, duration * 0.4));
+        modGain.gain.linearRampToValueAtTime(0.001, tStart + duration);
+      } else if (shape === 'string') {
+        // modulation rises slowly like a bow drawing across a string
+        modGain.gain.setValueAtTime(0, tStart);
+        modGain.gain.linearRampToValueAtTime(modIndex * 0.5, tStart + Math.min(0.18, duration * 0.5));
+        modGain.gain.linearRampToValueAtTime(modIndex * 0.4, tStart + duration);
+      } else if (shape === 'flute') {
+        // slight breathiness at the start, settles to a purer tone
+        modGain.gain.setValueAtTime(modIndex * 0.35, tStart);
+        modGain.gain.linearRampToValueAtTime(modIndex * 0.65, tStart + Math.min(0.05, duration * 0.2));
+        modGain.gain.linearRampToValueAtTime(modIndex * 0.4, tStart + duration);
+      } else {
+        // standard: ramp up, slight decay
+        modGain.gain.setValueAtTime(0, tStart);
+        modGain.gain.linearRampToValueAtTime(modIndex, tStart + Math.min(0.03, duration * 0.15));
+        modGain.gain.exponentialRampToValueAtTime(Math.max(1, modIndex * 0.3), tStart + duration);
       }
 
       mod.connect(modGain);

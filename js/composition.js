@@ -19,9 +19,15 @@ const ARCHETYPE = {
       [0.5, 0.5, 0.25, 0.25, 1],
       [0.25, 0.75, 0.5, 0.5],
     ],
+    articulDur:     0.72,   // short/staccato
     melodyRegister: 1,
     bassOctave:     -1,
     padVoicing:     [0, 2, 4],
+    bassRhythms: [
+      [0.5, 0.5, 0.5, 0.5],          // driving 8ths
+      [0.25, 0.25, 0.5, 0.5, 0.5],   // syncopated
+      [0.5, 0.25, 0.25, 1],          // mixed
+    ],
   },
 
   romantic: {
@@ -42,9 +48,15 @@ const ARCHETYPE = {
       [1.5, 0.5, 1, 1],
       [0.5, 0.5, 0.5, 0.5, 1, 1],
     ],
+    articulDur:     0.96,   // legato
     melodyRegister: 1,
     bassOctave:     -1,
-    padVoicing:     [0, 2, 4],
+    padVoicing:     [0, 2, 4, 6],   // major-7th chord — lush and warm
+    bassRhythms: [
+      [2],
+      [1, 1],
+      [1.5, 0.5],
+    ],
   },
 
   epic: {
@@ -65,9 +77,15 @@ const ARCHETYPE = {
       [1, 0.5, 0.5, 1, 1],
       [0.25, 0.25, 0.25, 0.25, 0.5, 0.5, 1],
     ],
+    articulDur:     0.82,
     melodyRegister: 3,
     bassOctave:     -1,
-    padVoicing:     [0, 2, 4],
+    padVoicing:     [0, 4, 7],   // root + P5 + octave = open cinematic power chord
+    bassRhythms: [
+      [1, 1],           // half notes
+      [0.5, 0.5, 1],    // 8th 8th quarter
+      [1, 0.5, 0.5],
+    ],
   },
 
   mysterious: {
@@ -88,9 +106,14 @@ const ARCHETYPE = {
       [0.25, 1.75, 1, 1],
       [0.5, 0.5, 1.5, 0.5, 1],
     ],
-    melodyRegister: 2,
+    articulDur:     0.60,
     bassOctave:     -1,
-    padVoicing:     [0, 2, 5],
+    padVoicing:     [0, 3, 5, 7],  // wide cluster: root + P4 + aug5 + maj7 (eerie)
+    bassRhythms: [
+      [2],
+      [2],
+      [1.5, 0.5],   // occasional subdivision
+    ],
   },
 
   peaceful: {
@@ -111,9 +134,15 @@ const ARCHETYPE = {
       [0.5, 0.5, 1, 0.5, 0.5, 1],
       [2, 1, 1],
     ],
+    articulDur:     0.92,
     melodyRegister: 2,
     bassOctave:     -1,
     padVoicing:     [0, 2, 4],
+    bassRhythms: [
+      [1, 1],
+      [2],
+      [1.5, 0.5],
+    ],
   },
 
   melancholic: {
@@ -134,9 +163,15 @@ const ARCHETYPE = {
       [2, 1, 1],
       [0.5, 0.5, 1, 0.5, 0.5, 1],
     ],
+    articulDur:     0.90,
     melodyRegister: 2,
     bassOctave:     -1,
-    padVoicing:     [0, 2, 4],
+    padVoicing:     [0, 2, 4, 6],  // minor-major 7th chord
+    bassRhythms: [
+      [2],
+      [1, 1],
+      [1.5, 0.5],
+    ],
   },
 };
 
@@ -152,17 +187,35 @@ function buildChord(degree, voicing, scaleFreqs, scaleSize, baseOctave = 1) {
 
 function generateBass(profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord) {
   const baseOct = Math.max(0, profile.bassOctave + 1);
-  return prog.map((degree, i) => {
-    const idx = baseOct * scaleSize + degree;
-    const f   = scaleFreqs[Math.max(0, Math.min(scaleFreqs.length - 1, idx))];
-    return {
-      freq:     f * 0.5,
-      time:     i * beatsPerChord * beatDur,
-      duration: beatsPerChord * beatDur * 0.95,
-      velocity: 0.55,
-      voice:    'bass',
-    };
-  });
+  const notes   = [];
+
+  for (let i = 0; i < prog.length; i++) {
+    const idx   = baseOct * scaleSize + prog[i];
+    const rootF = scaleFreqs[Math.max(0, Math.min(scaleFreqs.length - 1, idx))] * 0.5;
+
+    const chordStart  = i * beatsPerChord * beatDur;
+    const chordWindow = beatsPerChord * beatDur;
+    const pattern     = profile.bassRhythms ? pick(profile.bassRhythms) : [beatsPerChord];
+    let cursor = 0;
+
+    for (let j = 0; j < pattern.length; j++) {
+      const noteDur = pattern[j] * beatDur;
+      if (cursor + noteDur > chordWindow + 0.001) break;
+
+      // occasional octave jump on non-downbeats for movement
+      const octUp = j > 0 && Math.random() < 0.2;
+      notes.push({
+        freq:     octUp ? rootF * 2 : rootF,
+        time:     chordStart + cursor,
+        duration: noteDur * 0.88,
+        velocity: j === 0 ? 0.65 : 0.50,
+        voice:    'bass',
+      });
+      cursor += noteDur;
+    }
+  }
+
+  return notes;
 }
 
 function generateHarmony(profile, prog, scaleFreqs, scaleSize, beatDur, beatsPerChord) {
@@ -206,7 +259,6 @@ function generateMelody(profile, prog, scaleFreqs, scaleSize, beatDur, phraseBea
     const dir      = Math.random() < 0.55 ? 1 : -1;
     cursor        += interval * dir;
 
-    // Reflect at boundaries so the line bounces rather than teleports
     if (cursor < 0)      cursor = -cursor;
     if (cursor >= total) cursor = total - (cursor - total + 1);
     cursor = Math.max(0, Math.min(total - 1, cursor));
@@ -217,7 +269,7 @@ function generateMelody(profile, prog, scaleFreqs, scaleSize, beatDur, phraseBea
     notes.push({
       freq:     scaleFreqs[cursor],
       time,
-      duration: dur * 0.92,
+      duration: dur * (profile.articulDur ?? 0.92),
       velocity: Math.max(0.05, dynamics * (0.7 + Math.random() * 0.4)),
       voice:    'melody',
     });
@@ -229,8 +281,9 @@ function generateMelody(profile, prog, scaleFreqs, scaleSize, beatDur, phraseBea
 
 export function generatePhrase(params) {
   const profile       = getProfile(params.archetype);
-  const scaleSize     = getScaleSize(profile.scale);
-  const scaleFreqs    = getScaleFrequencies(profile.scale, profile.rootHz, profile.octaves);
+  const activeScale   = params.scale ?? profile.scale;
+  const scaleSize     = getScaleSize(activeScale);
+  const scaleFreqs    = getScaleFrequencies(activeScale, profile.rootHz, profile.octaves);
   const beatDur       = 60 / params.tempo;
   const prog          = pick(profile.chordProgressions);
   const beatsPerChord = 2;
