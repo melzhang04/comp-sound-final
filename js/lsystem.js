@@ -131,14 +131,6 @@ export function expand(grammar) {
   return s;
 }
 
-// Walk the expanded string left-to-right. Modifiers accumulate on a "pending"
-// state until a section symbol consumes them and emits a section descriptor.
-//
-// Each section gets:
-//   intensity  in [0, 1]   — drives velocity / dynamics / density
-//   register   integer     — octave offset relative to archetype root (-2..+2)
-//   lengthMul  in (0, ~3]  — multiplier on phrase duration
-//   index      number      — position in the piece
 export function renderStructure(expanded) {
   const sections = [];
   let pendingIntensity = 0;
@@ -183,10 +175,6 @@ export function renderStructure(expanded) {
   return sections;
 }
 
-// Convert one L-system section into a *modified* params object
-// that composition.js can use to generate that section's phrase.
-// The original archetype/scale/tempo are preserved; only the dynamic
-// parameters (dynamics, density, root register) shift per section.
 export function applySectionToParams(baseParams, section) {
   const k = section.intensity; // 0..1
 

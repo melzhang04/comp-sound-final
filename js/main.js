@@ -16,8 +16,6 @@ const engine = new CinematicEngine();
 let latestParams = null;
 let latestPiece  = null;
 
-// -------- visualisation helpers --------
-
 function registerColor(reg) {
   // -2 -> #222 (dark/low), 0 -> #555, +2 -> #aaa (light/high)
   const t = (reg + 2) / 4;
@@ -36,8 +34,6 @@ function renderStructureBars(sections) {
       </div>`;
   }).join('');
 }
-
-// -------- scene analysis --------
 
 function analyse(text) {
   const p = parseScene(text);
@@ -82,8 +78,6 @@ input.addEventListener('keydown', (e) => {
   engine.stop();
   analyse(text);
 });
-
-// -------- playback --------
 
 let highlightRAF = 0;
 

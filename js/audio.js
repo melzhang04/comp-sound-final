@@ -29,7 +29,15 @@ export class CinematicEngine {
     this.sectionTimings = [];
     this.startedAt = 0;
     this.totalDuration = 0;
-    this.isPlaying = false;
+    this._stopped = true;
+  }
+
+  // Derived flag: true while we're inside the scheduled playback window
+  // and haven't been explicitly stopped. Single source of truth for the UI
+  // — no setTimeout / wall-clock drift bugs.
+  get isPlaying() {
+    if (this._stopped || !this.ctx || this.startedAt === 0) return false;
+    return this.ctx.currentTime < this.startedAt + this.totalDuration;
   }
 
   // Lazy-init: AudioContext must be created in response to a user gesture.
@@ -167,11 +175,7 @@ export class CinematicEngine {
     this.sectionTimings = timings;
     this.startedAt = startAt;
     this.totalDuration = cursor - startAt;
-    this.isPlaying = true;
-
-    // Auto-clear playing flag at end
-    setTimeout(() => { this.isPlaying = false; },
-               (this.totalDuration + 0.5) * 1000);
+    this._stopped = false;
 
     return {
       startedAt: this.startedAt,
@@ -197,12 +201,12 @@ export class CinematicEngine {
   }
 
   stop() {
+    this._stopped = true;
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     for (const node of this.activeNodes) {
       try { node.stop(now); } catch (_) { /* already stopped */ }
     }
     this.activeNodes = [];
-    this.isPlaying = false;
   }
 }
