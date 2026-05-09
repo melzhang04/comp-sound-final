@@ -3,11 +3,17 @@ import { generatePhrase } from './composition.js';
 function makeReverbIR(ctx, durationSec = 2.6, decay = 3.2) {
   const length = Math.floor(ctx.sampleRate * durationSec);
   const ir = ctx.createBuffer(2, length, ctx.sampleRate);
+  const onsetSamples = ctx.sampleRate * 0.012;
   for (let ch = 0; ch < 2; ch++) {
     const data = ir.getChannelData(ch);
+    let lp = 0;
     for (let i = 0; i < length; i++) {
       const t = i / length;
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, decay);
+      const onset = 1 - Math.exp(-i / onsetSamples);
+      const env = onset * Math.pow(1 - t, decay);
+      const noise = Math.random() * 2 - 1;
+      lp += 0.32 * (noise - lp);
+      data[i] = lp * env;
     }
   }
   return ir;
@@ -121,25 +127,30 @@ export class CinematicEngine {
     if (freq <= 0 || freq >= nyquist) return;
 
     const carrier = ctx.createOscillator();
-    carrier.type = voice.wave === 'sine' ? texture.wave : voice.wave;
+    carrier.type = voice.wave;
     carrier.frequency.value = Math.min(freq * (params.fmCarrier ?? 1), nyquist * 0.92);
 
     const modulator = ctx.createOscillator();
-    modulator.type = params.archetype === 'mysterious' ? 'triangle' : 'sine';
+    modulator.type = 'sine';
     modulator.frequency.value = Math.min(freq * (params.fmModulator ?? 2), nyquist * 0.92);
 
     const modGain = ctx.createGain();
-    const peakIndex = freq * (params.fmModulator ?? 2) * voice.modScale * texture.modScale * 0.55;
+    const peakIndex = freq * (params.fmModulator ?? 2) * voice.modScale * texture.modScale * 0.18;
+    const modAttack = Math.min(0.08, dur * 0.35);
     modGain.gain.setValueAtTime(0.0001, tStart);
-    modGain.gain.linearRampToValueAtTime(Math.max(1, peakIndex), tStart + Math.min(0.05, dur * 0.2));
-    modGain.gain.exponentialRampToValueAtTime(Math.max(0.4, peakIndex * 0.18), tStart + dur);
+    modGain.gain.linearRampToValueAtTime(Math.max(0.5, peakIndex), tStart + modAttack);
+    modGain.gain.exponentialRampToValueAtTime(Math.max(0.2, peakIndex * 0.12), tStart + dur);
 
     const voiceGain = ctx.createGain();
-    const attack = Math.min(voice.attack, dur * 0.35);
+    const attack = Math.max(0.012, Math.min(voice.attack, dur * 0.35));
+    const release = Math.min(0.18, Math.max(0.04, dur * 0.35));
+    const sustainStart = Math.max(tStart + attack, tStart + dur - release);
     const peakAmp = Math.max(0.001, Math.min(0.8, note.velocity * voice.gain));
     voiceGain.gain.setValueAtTime(0.0001, tStart);
     voiceGain.gain.linearRampToValueAtTime(peakAmp, tStart + attack);
-    voiceGain.gain.exponentialRampToValueAtTime(0.0001, tStart + dur);
+    voiceGain.gain.setValueAtTime(peakAmp, sustainStart);
+    voiceGain.gain.exponentialRampToValueAtTime(0.0008, tStart + dur);
+    voiceGain.gain.linearRampToValueAtTime(0, tStart + dur + 0.04);
 
     const panner = ctx.createStereoPanner();
     panner.pan.setValueAtTime(Math.max(-0.85, Math.min(0.85, note.pan ?? 0)), tStart);
@@ -157,7 +168,7 @@ export class CinematicEngine {
       detuned.detune.value = voice.detune;
       detuned.connect(voiceGain);
       detuned.start(tStart);
-      detuned.stop(tStart + dur + 0.05);
+      detuned.stop(tStart + dur + 0.08);
       active.push(detuned);
     }
 
@@ -166,7 +177,7 @@ export class CinematicEngine {
 
     carrier.start(tStart);
     modulator.start(tStart);
-    const tStop = tStart + dur + 0.05;
+    const tStop = tStart + dur + 0.08;
     carrier.stop(tStop);
     modulator.stop(tStop);
 
