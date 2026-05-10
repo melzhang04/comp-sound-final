@@ -6,7 +6,111 @@
   <title>CinematicAI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Mono:wght@300;400;500&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .tab-nav {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: var(--bg);
+    }
+
+    .tab-btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 12px 24px;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      margin-bottom: -1px;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-panel { display: none; flex: 1; min-height: 0; overflow: hidden; }
+    .tab-panel.active { display: flex; flex-direction: column; }
+
+    #tab-app main { flex: 1; min-height: 0; }
+
+    #tab-blog { overflow-y: auto; background: #f7f3ee; }
+
+    #tab-blog article {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 60px 20px 100px;
+      font-family: 'Lora', Georgia, serif;
+      font-size: 18px;
+      line-height: 1.8;
+      color: #2a2018;
+    }
+
+    #tab-blog .kicker {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 20px;
+    }
+
+    #tab-blog .byline {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      padding-bottom: 32px;
+      margin-bottom: 48px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #tab-blog p { margin-bottom: 1.6em; }
+
+    #tab-blog h2 {
+      font-family: 'Lora', Georgia, serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 3em 0 0.8em;
+      color: #1a1410;
+    }
+    #tab-blog h2::before { content: '— '; color: var(--accent); }
+
+    #tab-blog em { font-style: italic; }
+    #tab-blog strong { font-weight: 600; }
+
+    #tab-blog blockquote {
+      margin: 2.5em 0;
+      padding: 0 0 0 24px;
+      border-left: 2px solid var(--accent);
+      font-style: italic;
+      font-size: 1.1rem;
+      color: var(--text-dim);
+      line-height: 1.65;
+    }
+
+    #tab-blog code {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.82em;
+      background: #ece6de;
+      padding: 2px 6px;
+      color: #1a1410;
+    }
+
+    #tab-blog hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 3.5em 0;
+    }
+  </style>
 </head>
 <body>
 
@@ -23,80 +127,229 @@
     </div>
   </header>
 
-  <main>
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="app">App</button>
+    <button class="tab-btn" data-tab="blog">How We Built It</button>
+  </nav>
 
-    <!-- Left: visualizer + phrase legend -->
-    <section class="visualizer-section">
-      <div class="screen-frame">
-        <canvas id="visualizerCanvas"></canvas>
-        <div class="screen-overlay" id="screenOverlay">
-          <span class="screen-prompt">enter a scene to begin</span>
-        </div>
-      </div>
-      <div class="phrase-legend">
-        <div class="legend-items">
-          <span class="legend-item"><span class="legend-dot ld-i"></span>intro</span>
-          <span class="legend-item"><span class="legend-dot ld-ab"></span>theme</span>
-          <span class="legend-item"><span class="legend-dot ld-d"></span>develop</span>
-          <span class="legend-item"><span class="legend-dot ld-c"></span>climax</span>
-          <span class="legend-item"><span class="legend-dot ld-r"></span>resolve</span>
-        </div>
-        <span class="arc-description" id="arcDescription"></span>
-      </div>
-    </section>
+  <!-- App tab -->
+  <div class="tab-panel active" id="tab-app">
+    <main>
 
-    <!-- Right: input + analysis -->
-    <section class="control-section">
-
-      <div class="input-block">
-        <label class="input-label" for="sceneInput">Scene description</label>
-        <textarea id="sceneInput" rows="3"
-          placeholder="a detective walking through a rainy city at night…"></textarea>
-        <div class="input-meta">
-          <span class="input-hint">press Enter to analyse</span>
-          <span class="char-count" id="charCount">0</span>
-        </div>
-        <div class="button-row">
-          <button class="btn-generate" id="playBtn" disabled>
-            <span class="btn-icon">▶</span> Play
-          </button>
-          <button class="btn-stop" id="stopBtn" disabled>■</button>
-        </div>
-      </div>
-
-      <div class="analysis-panel" id="analysisPanel">
-
-        <!-- Archetype scores -->
-        <div class="panel-section">
-          <div class="section-header">
-            <span class="section-label">Archetype match</span>
-            <span class="dominant-badge" id="dominantBadge"></span>
+      <section class="visualizer-section">
+        <div class="screen-frame">
+          <canvas id="visualizerCanvas"></canvas>
+          <div class="screen-overlay" id="screenOverlay">
+            <span class="screen-prompt">enter a scene to begin</span>
           </div>
-          <div class="archetype-scores" id="archetypeScores"></div>
+        </div>
+        <div class="phrase-legend">
+          <div class="legend-items">
+            <span class="legend-item"><span class="legend-dot ld-i"></span>intro</span>
+            <span class="legend-item"><span class="legend-dot ld-ab"></span>theme</span>
+            <span class="legend-item"><span class="legend-dot ld-d"></span>develop</span>
+            <span class="legend-item"><span class="legend-dot ld-c"></span>climax</span>
+            <span class="legend-item"><span class="legend-dot ld-r"></span>resolve</span>
+          </div>
+          <span class="arc-description" id="arcDescription"></span>
+        </div>
+      </section>
+
+      <section class="control-section">
+
+        <div class="input-block">
+          <label class="input-label" for="sceneInput">Scene description</label>
+          <textarea id="sceneInput" rows="3"
+            placeholder="a detective walking through a rainy city at night…"></textarea>
+          <div class="input-meta">
+            <span class="input-hint">press Enter to analyse</span>
+            <span class="char-count" id="charCount">0</span>
+          </div>
+          <div class="button-row">
+            <button class="btn-generate" id="playBtn" disabled>
+              <span class="btn-icon">▶</span> Play
+            </button>
+            <button class="btn-stop" id="stopBtn" disabled>■</button>
+          </div>
         </div>
 
-        <!-- Detected words -->
-        <div class="panel-section" id="detectedSection">
-          <span class="section-label">Detected signals</span>
-          <div class="detected-tags" id="detectedTags"></div>
+        <div class="analysis-panel" id="analysisPanel">
+
+          <div class="panel-section">
+            <div class="section-header">
+              <span class="section-label">Archetype match</span>
+              <span class="dominant-badge" id="dominantBadge"></span>
+            </div>
+            <div class="archetype-scores" id="archetypeScores"></div>
+          </div>
+
+          <div class="panel-section" id="detectedSection">
+            <span class="section-label">Detected signals</span>
+            <div class="detected-tags" id="detectedTags"></div>
+          </div>
+
+          <div class="panel-section">
+            <span class="section-label">Musical parameters</span>
+            <div class="param-grid" id="paramGrid"></div>
+          </div>
+
         </div>
 
-        <!-- Musical params -->
-        <div class="panel-section">
-          <span class="section-label">Musical parameters</span>
-          <div class="param-grid" id="paramGrid"></div>
-        </div>
+      </section>
+    </main>
+  </div>
 
-      </div>
+  <!-- Blog tab -->
+  <div class="tab-panel" id="tab-blog">
+    <article>
 
-    </section>
-  </main>
+      <div class="kicker">Computational Sound &nbsp;&nbsp; Spring 2026</div>
+      <div class="byline">S. Agbekpenou &nbsp;·&nbsp; M. Zhang &nbsp;·&nbsp; A. Livias</div>
+
+      <h2>What Does This Scene Feel Like?</h2>
+
+      <p>
+        The first problem is turning a sentence into a musical mood. A film composer does this instinctively after decades of training. Our task is to replicate this.
+      </p>
+
+      <p>
+        We defined six moods which we call archetypes: <em>tense, romantic, epic, mysterious, peaceful, melancholic</em>. Every piece of music the app generates belongs to one of these. The question is which one your description points to.
+      </p>
+
+      <p>
+        We score each word in your input against these six categories using two sources. The first is the <strong>NRC Word-Emotion Lexicon</strong>, a dataset of about 14,000 English words tagged with emotions like "fear," "joy," "anger," and "sadness." We convert those into archetype scores like fear and anger become tense, joy and trust become romantic, sadness becomes melancholic, and so on.
+      </p>
+
+      <p>
+        The second source is our own list of about 120 cinematic words that we weighted ourselves. "Battle" should slam epic to the top, not just nudge "anger" a little. "Eerie" should dominate mysterious. "Candlelight" should light up romantic. The NRC lexicon wasn't built for film music, so we had to supplement it with words that actually show up in scene descriptions.
+      </p>
+
+      <blockquote>
+        "Rainy city at night" is three separate signals: rain (melancholic, a little tense), city (neutral), night (mysterious and tense). Together they add up to something that sounds like a thriller.
+      </blockquote>
+
+      <p>
+        We also check for two-word phrases before we look at individual words. "Dark alley" scores tense and mysterious together, much higher than "dark" and "alley" would individually. "Love story" immediately locks in romantic. This catches a lot of cases where no single word is a strong signal but the combination is unambiguous.
+      </p>
+
+      <p>
+        Once we've scored everything, we pick the dominant archetype. If it wins by a lot, the music hews closely to that style's preset. If it's close between two archetypes, we blend the settings — the tempo might sit between "tense" and "mysterious," the reverb somewhere in between. This is why "a ghost at a wedding" sounds different from both pure mystery and pure romance.
+      </p>
+
+      <hr>
+
+      <h2>Each Archetype Has Its Own Scale and Sound</h2>
+
+      <p>
+        Every archetype maps to a specific musical scale and a specific sonic texture. These choices are based on how these scales and timbres have actually been used in film music.
+      </p>
+
+      <p>
+        <strong>Tense</strong> uses phrygian dominant, a scale with a half-step right above the root that creates immediate unease. Think Ennio Morricone's spaghetti westerns or basically every Middle Eastern-inflected action cue. <strong>Epic</strong> uses Hungarian minor, which has an augmented second between its third and fourth degrees; that interval is what makes brass fanfares sound so gigantic. <strong>Mysterious</strong> uses the octatonic scale, which alternates whole and half steps and has no obvious home base, leaving everything unresolved. <strong>Peaceful</strong> uses pentatonic major, which has no half-steps at all, so nothing can clash. <strong>Melancholic</strong> uses harmonic minor, the scale with the raised seventh that creates that particular kind of longing. <strong>Romantic</strong> uses Lydian, which is like major but with a raised fourth that gives everything a slightly dreamy shimmer.
+      </p>
+
+      <p>
+        The timbre of each archetype is also distinct. Tense gets sawtooth oscillators (bright, buzzy, aggressive). Peaceful gets nearly pure sines (smooth, gentle). Mysterious gets high modulation ratios that produce bell-like, slightly metallic tones. These choices all come from how synthesizers are used in actual film scoring.
+      </p>
+
+      <hr>
+
+      <h2>The L-System: Giving the Music a Shape</h2>
+
+      <p>
+        A scene / film score has an intro, a building middle, a peak, a resolution. We needed a way to generate that shape procedurally without hardcoding it.
+      </p>
+
+      <p>
+        We used something called an <strong>L-system</strong>, which was originally invented to model how plants grow. The idea is simple: you start with a short string of symbols and apply rewriting rules to expand it. Do this a few times and you get a much longer string with interesting structure.
+      </p>
+
+      <p>
+        Our symbols are musical sections: <code>I</code> (intro), <code>A</code> and <code>B</code> (main themes), <code>D</code> (development), <code>C</code> (climax), <code>R</code> (resolution), <code>O</code> (outro). We also have modifiers like <code>+</code> (more intense), <code>-</code> (softer), <code>^</code> (higher register). The epic archetype's grammar looks like this:
+      </p>
+
+      <blockquote>
+        Start: <code>IADCRO</code><br>
+        A becomes <code>A+D</code><br>
+        D becomes <code>D+D+C</code><br>
+        C becomes <code>C^+CC</code>
+      </blockquote>
+
+      <p>
+        After two rounds of expansion, the climax and development sections have multiplied and intensified. The resolution has shrunk. The result is exactly what you'd expect from a war film: relentless buildup, explosive peak, brief quiet ending. The tense archetype's grammar, by contrast, generates irregular back-and-forth because that jagged instability is what tense music feels like.
+      </p>
+
+      <p>
+        The L-system gives us different dramatic shapes for free. We just wrote the grammars once, and now every time you type something epic, it generates a different piece, but always with that relentless-build shape.
+      </p>
+
+      <hr>
+
+      <h2>Making the Sound: FM Synthesis From Scratch</h2>
+
+      <p>
+        Everything you hear is synthesized in real time using the Web Audio API. We used FM synthesis, which works by having one oscillator (the modulator) wiggle the frequency of another oscillator (the carrier) very fast. The speed and depth of that wiggling determines whether you get something smooth and gentle or bright and buzzy.
+      </p>
+
+      <p>
+        Each note has six simultaneous "voices" playing at once: a bass, a bass pulse, a pad harmony, an ostinato figure, a counter-melody, and a lead melody. They each have different oscillator waveforms, different attack times, different panning positions. The bass is a slow-attack sine. The ostinato is a filtered square wave: harsh raw, but soft and plucky through a lowpass filter. The melody is a sine with high modulation so it has a bright, cutting attack.
+      </p>
+
+      <p>
+        We also generate the reverb programmatically. Instead of loading a recorded room impulse, we write the impulse response ourselves: shaped noise with a short pre-delay and an exponential decay. It's a simple algorithm but it produces a convincing hall reverb, and it means the whole app loads with zero audio assets.
+      </p>
+
+      <hr>
+
+      <h2>Scheduling Everything Precisely</h2>
+
+      <p>
+        One of the trickier parts was making sure notes play at exactly the right time. JavaScript's <code>setTimeout</code> is unreliable for audio because it can drift by tens of milliseconds, which sounds awful. The Web Audio API has its own high-precision clock (<code>audioContext.currentTime</code>) that runs independently of the JavaScript event loop.
+      </p>
+
+      <p>
+        So we schedule every note for the entire piece at once when you hit Play. Each oscillator gets an exact start time and stop time computed from the current audio clock. The whole piece is already scheduled in about 10 milliseconds; the audio engine just plays back what we told it. This gives sample-accurate timing regardless of what else the browser is doing.
+      </p>
+
+      <p>
+        The scrubbing feature, where you can drag the playhead to any point in the piece, works by stopping everything, throwing away the sections before the target point, and rescheduling from there. The visual playhead just reads <code>currentTime</code> every animation frame and converts it to a position.
+      </p>
+
+      <hr>
+
+      <h2>What We Learned</h2>
+
+      <p>
+        The biggest surprise was how far you can get with just oscillators and a good reverb. The main thing that makes it feel "cinematic" is actually the scale choice and the harmonic rhythm. Get those right and the timbre almost doesn't matter.
+      </p>
+
+      <p>
+        The L-system was a late addition and immediately made everything feel more intentional. Before it, pieces were just loops of similar-sounding phrases. After, there's a sense of going somewhere and that arc is what makes it feel like it's scoring something.
+      </p>
+
+      <p>
+        We'd love to add percussion next. Even just filtered noise bursts on beats two and four would make the epic archetype feel ten times more physical. And a crossfade between sections, instead of the current hard cut, would make the form feel more organic. But for a semester project, we're genuinely happy with where this landed.
+      </p>
+
+    </article>
+  </div>
 
   <footer>
     <span>Columbia Computational Sound &middot; Spring 2026</span>
-    <span>S. Agbekpenou &middot; M. Zhang &middot; A. Livias</span>
+    <span>Sophie Agbekpenou &middot; Melisa Zhang &middot; Axel Livias</span>
   </footer>
 
   <script type="module" src="js/main.js"></script>
+  <script>
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + target).classList.add('active');
+      });
+    });
+  </script>
 </body>
 </html>
