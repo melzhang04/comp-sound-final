@@ -34,8 +34,8 @@ const GRAMMARS = {
     axiom: 'IADCRO',
     rules: {
       A: 'A+D',
-      D: 'D+D+C',
-      C: 'C^+CC',
+      D: 'D+C',
+      C: 'C^+C',
       R: 'R-O',
     },
     iterations: 2,

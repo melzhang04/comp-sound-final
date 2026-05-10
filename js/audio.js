@@ -4,18 +4,22 @@ function makeReverbIR(ctx, durationSec = 2.6, decay = 3.2) {
   const length = Math.floor(ctx.sampleRate * durationSec);
   const ir = ctx.createBuffer(2, length, ctx.sampleRate);
   const onsetSamples = ctx.sampleRate * 0.012;
+
   for (let ch = 0; ch < 2; ch++) {
     const data = ir.getChannelData(ch);
     let lp = 0;
+
     for (let i = 0; i < length; i++) {
       const t = i / length;
       const onset = 1 - Math.exp(-i / onsetSamples);
       const env = onset * Math.pow(1 - t, decay);
       const noise = Math.random() * 2 - 1;
+
       lp += 0.32 * (noise - lp);
       data[i] = lp * env;
     }
   }
+
   return ir;
 }
 
@@ -36,6 +40,82 @@ const ARCHETYPE_TEXTURE = {
   peaceful:    { wave: 'sine',     modScale: 0.55, brightness: 0.85 },
   melancholic: { wave: 'triangle', modScale: 0.9,  brightness: 0.75 },
 };
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function isEpic(params) {
+  return params?.archetype === 'epic';
+}
+
+function getCarrierWave(params, voiceName, fallbackWave) {
+  if (!isEpic(params)) return fallbackWave;
+
+  switch (voiceName) {
+    case 'bass':
+      return 'triangle';
+    case 'bassPulse':
+      return 'square';
+    case 'harmony':
+      return 'sawtooth';
+    case 'counter':
+      return 'sawtooth';
+    case 'ostinato':
+      return 'square';
+    case 'melody':
+      return 'triangle';
+    default:
+      return fallbackWave;
+  }
+}
+
+function getVoiceBoost(params, voiceName) {
+  if (!isEpic(params)) return 1;
+
+  switch (voiceName) {
+    case 'bass':
+      return 1.25;
+    case 'bassPulse':
+      return 1.55;
+    case 'harmony':
+      return 1.45;
+    case 'counter':
+      return 1.25;
+    case 'ostinato':
+      return 1.18;
+    case 'melody':
+      return 1.08;
+    default:
+      return 1;
+  }
+}
+
+function getAttack(params, voiceName, fallbackAttack, dur) {
+  if (!isEpic(params)) {
+    return Math.max(0.012, Math.min(fallbackAttack, dur * 0.35));
+  }
+
+  const epicAttack = {
+    bass: 0.012,
+    bassPulse: 0.004,
+    harmony: 0.026,
+    ostinato: 0.006,
+    counter: 0.018,
+    melody: 0.012,
+  }[voiceName] ?? fallbackAttack;
+
+  return Math.max(0.004, Math.min(epicAttack, dur * 0.35));
+}
+
+function getFmDepth(params, voiceName, carrierWave) {
+  if (!isEpic(params)) return 0.18;
+
+  if (carrierWave === 'sawtooth') return 0.055;
+  if (voiceName === 'bass' || voiceName === 'bassPulse') return 0.09;
+
+  return 0.12;
+}
 
 export class CinematicEngine {
   constructor() {
@@ -61,6 +141,7 @@ export class CinematicEngine {
 
   init() {
     if (this.ctx) return;
+
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.ctx = ctx;
 
@@ -74,6 +155,7 @@ export class CinematicEngine {
 
     this.dry = ctx.createGain();
     this.dry.gain.value = 0.7;
+
     this.wet = ctx.createGain();
     this.wet.gain.value = 0.3;
 
@@ -98,36 +180,104 @@ export class CinematicEngine {
 
   applyScene(params) {
     if (!this.ctx) this.init();
+
     if (params.filterType) this.filter.type = params.filterType;
+
     if (params.filterFreq) {
       this.filter.frequency.cancelScheduledValues(this.ctx.currentTime);
       this.filter.frequency.setValueAtTime(params.filterFreq, this.ctx.currentTime);
     }
+
     if (params.reverbWet !== undefined) {
       this.wet.gain.setValueAtTime(params.reverbWet, this.ctx.currentTime);
       this.dry.gain.setValueAtTime(1 - params.reverbWet * 0.5, this.ctx.currentTime);
+    }
+
+    if (isEpic(params)) {
+      this.master.gain.setValueAtTime(0.64, this.ctx.currentTime);
+      this.compressor.threshold.setValueAtTime(-21, this.ctx.currentTime);
+      this.compressor.ratio.setValueAtTime(4.2, this.ctx.currentTime);
+      this.filter.Q.setValueAtTime(0.65, this.ctx.currentTime);
+    } else {
+      this.master.gain.setValueAtTime(0.58, this.ctx.currentTime);
+      this.compressor.threshold.setValueAtTime(-18, this.ctx.currentTime);
+      this.compressor.ratio.setValueAtTime(3, this.ctx.currentTime);
+      this.filter.Q.setValueAtTime(0.85, this.ctx.currentTime);
     }
   }
 
   scheduleSectionAutomation(startTime, duration, params) {
     const texture = ARCHETYPE_TEXTURE[params.archetype] ?? ARCHETYPE_TEXTURE.tense;
-    const targetFreq = Math.max(180, Math.min(8000, (params.filterFreq ?? 1600) * texture.brightness));
+
+    let targetFreq = Math.max(
+      180,
+      Math.min(8000, (params.filterFreq ?? 1600) * texture.brightness)
+    );
+
+    if (isEpic(params)) {
+      const sectionBoost = params.sectionType === 'C' ? 1.35
+        : params.sectionType === 'D' ? 1.18
+        : 1.05;
+
+      targetFreq = Math.max(220, Math.min(9000, targetFreq * sectionBoost));
+    }
+
     this.filter.frequency.setValueAtTime(this.filter.frequency.value, startTime);
-    this.filter.frequency.linearRampToValueAtTime(targetFreq, startTime + Math.min(0.35, duration * 0.25));
+    this.filter.frequency.linearRampToValueAtTime(
+      targetFreq,
+      startTime + Math.min(0.35, duration * 0.25)
+    );
+  }
+
+  scheduleEpicSubHit(tStart, dur, freq, velocity, destination) {
+    if (!this.ctx) return;
+
+    const ctx = this.ctx;
+    const hitDur = Math.min(0.18, Math.max(0.06, dur * 0.75));
+    const sub = ctx.createOscillator();
+    const subGain = ctx.createGain();
+
+    sub.type = 'sine';
+
+    const startFreq = clamp(freq * 0.5, 45, 120);
+    const endFreq = clamp(freq * 0.25, 34, 70);
+
+    sub.frequency.setValueAtTime(startFreq, tStart);
+    sub.frequency.exponentialRampToValueAtTime(endFreq, tStart + hitDur);
+
+    const amp = clamp(velocity * 0.18, 0.025, 0.16);
+    subGain.gain.setValueAtTime(0, tStart);
+    subGain.gain.linearRampToValueAtTime(amp, tStart + 0.008);
+    subGain.gain.exponentialRampToValueAtTime(0.0008, tStart + hitDur);
+    subGain.gain.linearRampToValueAtTime(0, tStart + hitDur + 0.02);
+
+    sub.connect(subGain);
+    subGain.connect(destination);
+
+    sub.start(tStart);
+    sub.stop(tStart + hitDur + 0.04);
+
+    this.activeNodes.push(sub);
   }
 
   scheduleNote(tStart, note, params) {
     if (!note.freq || note.velocity <= 0) return;
+
     const ctx = this.ctx;
-    const voice = VOICE[note.voice] ?? VOICE.melody;
+    const voiceName = note.voice ?? 'melody';
+    const voice = VOICE[voiceName] ?? VOICE.melody;
     const texture = ARCHETYPE_TEXTURE[params.archetype] ?? ARCHETYPE_TEXTURE.tense;
+
     const dur = Math.max(0.03, note.duration);
     const freq = note.freq * (params.transpose ?? 1);
     const nyquist = ctx.sampleRate / 2;
+
     if (freq <= 0 || freq >= nyquist) return;
 
     const carrier = ctx.createOscillator();
-    carrier.type = voice.wave;
+    const carrierWave = getCarrierWave(params, voiceName, voice.wave);
+
+    carrier.type = carrierWave;
     carrier.frequency.value = Math.min(freq * (params.fmCarrier ?? 1), nyquist * 0.92);
 
     const modulator = ctx.createOscillator();
@@ -135,18 +285,22 @@ export class CinematicEngine {
     modulator.frequency.value = Math.min(freq * (params.fmModulator ?? 2), nyquist * 0.92);
 
     const modGain = ctx.createGain();
-    const peakIndex = freq * (params.fmModulator ?? 2) * voice.modScale * texture.modScale * 0.18;
+    const fmDepth = getFmDepth(params, voiceName, carrierWave);
+    const peakIndex = freq * (params.fmModulator ?? 2) * voice.modScale * texture.modScale * fmDepth;
     const modAttack = Math.min(0.08, dur * 0.35);
+
     modGain.gain.setValueAtTime(0.0001, tStart);
     modGain.gain.linearRampToValueAtTime(Math.max(0.5, peakIndex), tStart + modAttack);
     modGain.gain.exponentialRampToValueAtTime(Math.max(0.2, peakIndex * 0.12), tStart + dur);
 
     const voiceGain = ctx.createGain();
-    const attack = Math.max(0.012, Math.min(voice.attack, dur * 0.35));
+    const attack = getAttack(params, voiceName, voice.attack, dur);
     const release = Math.min(0.18, Math.max(0.04, dur * 0.35));
     const sustainStart = Math.max(tStart + attack, tStart + dur - release);
-    const peakAmp = Math.max(0.001, Math.min(0.8, note.velocity * voice.gain));
-    voiceGain.gain.setValueAtTime(0.0001, tStart);
+    const boostedGain = note.velocity * voice.gain * getVoiceBoost(params, voiceName);
+    const peakAmp = Math.max(0.001, Math.min(0.8, boostedGain));
+
+    voiceGain.gain.setValueAtTime(0, tStart);
     voiceGain.gain.linearRampToValueAtTime(peakAmp, tStart + attack);
     voiceGain.gain.setValueAtTime(peakAmp, sustainStart);
     voiceGain.gain.exponentialRampToValueAtTime(0.0008, tStart + dur);
@@ -165,7 +319,12 @@ export class CinematicEngine {
       const detuned = ctx.createOscillator();
       detuned.type = carrier.type;
       detuned.frequency.value = carrier.frequency.value;
-      detuned.detune.value = voice.detune;
+
+      const detuneAmount = isEpic(params) && ['harmony', 'counter', 'melody'].includes(voiceName)
+        ? voice.detune * 1.8
+        : voice.detune;
+
+      detuned.detune.value = detuneAmount;
       detuned.connect(voiceGain);
       detuned.start(tStart);
       detuned.stop(tStart + dur + 0.08);
@@ -175,8 +334,13 @@ export class CinematicEngine {
     voiceGain.connect(panner);
     panner.connect(this.filter);
 
+    if (isEpic(params) && voiceName === 'bassPulse') {
+      this.scheduleEpicSubHit(tStart, dur, freq, note.velocity, voiceGain);
+    }
+
     carrier.start(tStart);
     modulator.start(tStart);
+
     const tStop = tStart + dur + 0.08;
     carrier.stop(tStop);
     modulator.stop(tStop);
@@ -187,6 +351,7 @@ export class CinematicEngine {
   playPiece(piece, baseParams) {
     this.stop();
     this.init();
+
     if (this.ctx.state === 'suspended') this.ctx.resume();
 
     this.applyScene(baseParams);
@@ -215,7 +380,18 @@ export class CinematicEngine {
           time: note.time * lengthMul,
           duration: note.duration * lengthMul,
         };
-        this.scheduleNote(cursor + scaledNote.time, scaledNote, params);
+
+        try {
+          this.scheduleNote(cursor + scaledNote.time, scaledNote, params);
+        } catch (err) {
+          console.warn('scheduleNote failed', {
+            archetype: params.archetype,
+            voice: scaledNote.voice,
+            freq: scaledNote.freq,
+            dur: scaledNote.duration,
+            err,
+          });
+        }
       }
 
       cursor += phraseDur;
@@ -240,20 +416,31 @@ export class CinematicEngine {
 
   currentSectionIndex() {
     if (!this.ctx || !this.isPlaying) return -1;
+
     const now = this.ctx.currentTime;
+
     for (const t of this.sectionTimings) {
       if (now >= t.startTime && now < t.endTime) return t.index;
     }
+
     return -1;
   }
 
   stop() {
     this._stopped = true;
+
     if (!this.ctx) return;
+
     const now = this.ctx.currentTime;
+
     for (const node of this.activeNodes) {
-      try { node.stop(now); } catch (_) { /* already stopped */ }
+      try {
+        node.stop(now);
+      } catch (_) {
+        // already stopped
+      }
     }
+
     this.activeNodes = [];
   }
 }
